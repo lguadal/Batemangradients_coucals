@@ -504,66 +504,6 @@ summarize_diff(diff_with_ENO_vs_no_ENO, "Males with ENO vs Males without ENO")
 ````
 
 
-## Plot differences in slopes 
-```{r}
-
-##############################################
-# Prepare slope differences for plotting
-##############################################
-
-# Females vs Males without ENO
-slope_females <- bsim@fixef[, "totalmates"]
-slope_2males <- bsim@fixef[, "totalmates"] + bsim@fixef[, "totalmates:category2males"]
-diff_f_vs_2m <- slope_females - slope_2males
-ci_f_vs_2m <- round(quantile(diff_f_vs_2m, c(0.025, 0.5, 0.975)), 2)
-prob_f_gt_2m <- round(mean(diff_f_vs_2m > 0), 3)
-
-# Females vs Males with ENO
-slope_3males <- bsim@fixef[, "totalmates"] + bsim@fixef[, "totalmates:category3malesENO"]
-diff_f_vs_3m <- slope_females - slope_3males
-ci_f_vs_3m <- round(quantile(diff_f_vs_3m, c(0.025, 0.5, 0.975)), 2)
-prob_f_gt_3m <- round(mean(diff_f_vs_3m > 0), 3)
-
-# Males without ENO vs Males with ENO
-diff_2m_vs_3m <- slope_2males - slope_3males
-ci_2m_vs_3m <- round(quantile(diff_2m_vs_3m, c(0.025, 0.5, 0.975)), 2)
-prob_2m_gt_3m <- round(mean(diff_2m_vs_3m > 0), 3)
-
-
-##############################################
-# Combine into a single data frame for plotting
-##############################################
-
-df_plot <- data.frame(
-  diff = c(diff_f_vs_2m, diff_f_vs_3m, diff_2m_vs_3m),
-  comparison = rep(
-    c("Females vs Males without ENO",
-      "Females vs Males with ENO",
-      "Males without vs Males with ENO"),
-    each = length(diff_f_vs_2m)
-  )
-)
-
-##############################################
-# Plot posterior distributions of differences
-##############################################
-
-ggplot(df_plot, aes(x = diff, fill = comparison)) +
-  geom_density(alpha = 0.5) +
-  geom_vline(xintercept = ci_f_vs_2m, color = "#0072B2", linetype = "dashed") +
-  geom_vline(xintercept = ci_f_vs_3m, color = "#E69F00", linetype = "dashed") +
-  geom_vline(xintercept = ci_2m_vs_3m, color = "#009E73", linetype = "dashed") +
-  labs(
-    title = "Posterior distributions of slope differences",
-    x = "Slope difference",
-    y = "Density",
-    fill = "Comparison"
-  ) +
-  custom_theme +
-  scale_fill_manual(values = c("#0072B2", "#E69F00", "#009E73"))
-
-
-```
 
 
 
@@ -1095,11 +1035,8 @@ plot <- plot  +
 females_plot1 <- plot 
 
 
-
 # Print the plot
 print(females_plot1)
-
-
 
 ```
 
