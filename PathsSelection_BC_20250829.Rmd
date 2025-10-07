@@ -1,0 +1,2696 @@
+---
+title: "Black Coucals morphological traits"
+date: "2023-12-12"
+output:
+  html_document:
+    toc: yes
+    toc_depth: '3'
+    df_print: paged
+  pdf_document:
+    toc: yes
+    toc_depth: 3
+    theme: journal
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+set.seed(123)  
+```
+
+# Responses to sexual selection on morphological traits in Black Coucals. 
+
+This script quantifies the response to sexual selection on morphological traits — including body mass, scaled body mass index, tail length, and right tarsus length — measured across multiple years in black coucals (Centropus grillii; females: n = 68, males: n = 98). The analyses are conducted using generalized linear models (GLMs) with a Gaussian distribution, following the framework described in Hershaw et al. (2018, Evolution), and estimates are reported with 95% credible intervals based on posterior simulations.
+
+The purpose of these analyses is to test the extent to which potential confounding variables explain variance in the relationship between mating success and reproductive success, and to quantify the response to selection on each trait.
+
+The script provides the following estimates for each trait in males and females:
+
+1) Mating gradient on the trait
+
+2) Simple Bateman gradient
+
+3) Partial Bateman gradient
+
+4) Sexual selection
+
+5) Remaining selection
+
+6) Total selection (selection differential)
+
+
+```{r, warning=FALSE}
+
+# Set the working directory
+knitr::opts_knit$set(root.dir = "setwd(getwd())")
+
+# Read the CSV file
+morpho <- read.csv("morpho_BC.csv")
+
+```
+
+```{r include = FALSE}
+knitr::opts_chunk$set(message = FALSE)
+```
+
+```{r,warning=TRUE}
+## Loading the library 
+library(ggplot2)# Visualising results
+library(lme4) # to run the mixed model 
+library(arm) # bayesian analysis
+library(blmeco) # check checking for over dispersion in the models #calculate means and sd 
+library(dplyr)
+library(reshape2)
+library("ggpubr")
+library("performance")
+library(sjPlot)
+library(lavaan)
+library(readr)
+```
+
+#Theme for all plots 
+```{r}
+theme_plots <- function() {
+  theme_bw() +
+    theme(
+      legend.position = "none",
+      legend.text = element_text(size = 10),
+      legend.title = element_text(size = 10),
+      axis.text = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      plot.title = element_text(color = "black", face = "bold")
+    )
+}
+
+
+female_color <- "violetred"   
+male_color <- "blue" 
+
+
+```
+
+### Data preparation
+
+```{r, warning=FALSE}
+# Convert specific columns to factors
+morpho <- morpho %>%
+  mutate_at(vars(ring_no, sex, year, parent, category, analysis, species), as.factor)
+head(morpho) 
+
+# Print the row numbers where 'scaled_mass_index' and 'tail_body' are both NA
+na_rows <- which(is.na(morpho$scaled_mass_index) & is.na(morpho$tail_body))
+print(na_rows) 
+
+# Check the structure of 'morpho' after NA check
+str(morpho) # Expect 163 observations
+
+# Check the counts of 'sex' column before and after random factor addition
+table(morpho$sex) # Display counts of each level in the 'sex' column
+```
+
+
+
+```{r}
+
+# Check how levels in category are organized
+levels(morpho$category)
+
+# Separate the data sets by sex for females (for models)
+female_morpho <- morpho %>% filter(sex == "female") %>% droplevels()
+str(female_morpho) # Information about the structure of the 'female_morpho' data frame
+table(female_morpho$sex) # Count observations for 'sex' in 'female_morpho'
+head(female_morpho) #Display the first few rows of the 'female_morpho' data frame
+
+# Separate the data sets by sex for males
+male_morpho <- morpho %>% filter(sex == "male") %>% droplevels()
+str(male_morpho) 
+table(male_morpho$sex) 
+head(male_morpho) 
+
+#Separate the sets by sex for females 
+fe <-morpho %>% filter(sex=="female") %>% droplevels()
+#Separate the sets by sex for males 
+ma <-morpho %>% filter(sex=="male") %>% droplevels()
+
+```
+
+```{r}
+hist(female_morpho$scaled_mass_index)
+hist(female_morpho$tail_body)
+hist(female_morpho$right_tarsus)
+
+
+hist(male_morpho$scaled_mass_index)
+hist(male_morpho$tail_body)
+hist(male_morpho$right_tarsus)
+```
+
+#1.Table 2: Path coefficients 
+### 1.1 Female path coefficient (body mass).
+```{r}
+# ============================
+# Inspect Data
+# ============================
+head(female_morpho)
+
+# ============================
+# Data Preprocessing
+# ============================
+fe_sum <- female_morpho %>%
+  filter(!is.na(body_mass)) %>%
+  mutate(
+    body_mass = as.numeric(body_mass),
+    totaloff = as.numeric(totaloff),
+    totalmates = as.numeric(totalmates),
+    scaled_bodymass = as.numeric(scale(body_mass))
+  )
+
+# Sample size (unique parents)
+fe_sum %>% distinct(parent) %>% count()  # n = 67
+
+# ============================
+# Assign Variables
+# ============================
+fe_sum <- fe_sum %>%
+  mutate(
+    Z = body_mass,
+    M = totalmates,
+    R = totaloff
+  )
+
+# Trait variance standardized and relative reproductive/mating success
+fe_sum <- fe_sum %>%
+  mutate(
+     Z = (body_mass - mean(body_mass)) / sd(body_mass),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+
+# ============================
+# Path Model Specification
+# ============================
+bc.model <- "
+  Z ~~ varZ*Z
+  M ~ bMZ*Z
+  R ~ bRM*M + bRZ*Z
+  xZ := varZ*bMZ*bRM
+  rZ := varZ*bRZ
+  sZ := varZ*bMZ*bRM + varZ*bRZ
+"
+
+# ============================
+# Fit Path Model
+# ============================
+bc.fit <- sem(bc.model, data = fe_sum, estimator = "GLS")
+summary(bc.fit)
+```
+```{r}
+# ============================
+# Compare with Jones (2009)
+# ============================
+Z <- fe_sum$Z
+M <- fe_sum$M
+R <- fe_sum$R
+
+betaMZ     <- coef(glm(M ~ Z))["Z"]
+betass     <- coef(glm(R ~ M))["M"]
+betaRM.Z   <- coef(glm(R ~ M + Z))["M"]
+betaRZ.M   <- coef(glm(R ~ M + Z))["Z"]
+
+results <- data.frame(
+  "Jones.2009" = c(
+    var(Z) * betaMZ * betass,
+    cov(Z, R) - var(Z) * betaMZ * betass,
+    cov(Z, R)
+  ),
+  "Our.Model" = c(
+    var(Z) * betaMZ * betaRM.Z,
+    var(Z) * betaRZ.M,
+    cov(Z, R)
+  ),
+  row.names = c("Sexual Selection", "Remaining Selection", "Total Selection")
+)
+
+print(results)
+
+```
+```{r}
+# ============================
+# Path Coefficients
+# ============================
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z))$coefficients["Z", 1]
+mod       <- glm(M ~ Z, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z"]
+
+round(mean(beta_sims > 0), 3) 
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z + M))$coefficients["Z", 1]
+mod       <- glm(R ~ Z + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z"]
+
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M))$coefficients["M", 1]
+mod       <- glm(R ~ M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
+mod       <- glm(R ~ Z + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 1000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ============================
+# Raw Path Coefficient Calculations
+# ============================
+our_model_raw <- c(
+  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
+  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
+  total.selection     = rep(covRZ, n_sim)
+)
+
+# ============================
+# Fit Poisson Models
+# ============================
+betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
+betaMZraw <- summary(glm(M ~ Z ))$coefficients["Z", 1]
+betaRZraw <- summary(glm(R ~ Z + M ))$coefficients["Z", 1]
+
+mod_RM <- glm(R ~ Z + M, data = fe_sum)
+mod_MZ <- glm(M ~ Z, data = fe_sum)
+mod_RZ <- glm(R ~ Z + M, data = fe_sum)
+
+# ============================
+# Posterior Simulation
+# ============================
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+betaRM_sims <- sim_RM@coef[, "M"]
+betaMZ_sims <- sim_MZ@coef[, "Z"]
+betaRZ_sims <- sim_RZ@coef[, "Z"]
+
+varZ  <- var(Z, na.rm = TRUE)
+covRZ <- cov(Z, R, use = "complete.obs")
+
+# ============================
+# Simulated Path Coefficients
+# ============================
+sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
+remaining_selection <- varZ * betaRZ_sims
+total_selection     <- sexual_selection + remaining_selection
+
+# Posterior probability > 0
+round(mean(sexual_selection > 0), 3)
+round(mean(remaining_selection > 0), 3)
+round(mean(total_selection > 0), 3)
+
+# ============================
+# Summarize Results
+# ============================
+summary_pathcoeff <- data.frame(
+  Parameter = c("Sexual Selection", "Remaining Selection", "Total Selection"),
+  Mean      = round(c(mean(sexual_selection), mean(remaining_selection), mean(total_selection)), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_selection, 0.025),
+    quantile(remaining_selection, 0.025),
+    quantile(total_selection, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_selection, 0.975),
+    quantile(remaining_selection, 0.975),
+    quantile(total_selection, 0.975)
+  ), 2)
+)
+
+print(summary_pathcoeff)
+
+
+```
+
+#### 1.1.2 Plot Selection gradient on body mass controlling for M
+```{r}
+
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M , data = fe_sum)
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(fe_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(fe_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-2.91,  2.67, length = 100),
+                      M= mean(fe_sum$M))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+newdat
+head(newdat) # Display the first few rows of 'newdat'
+
+### Create the scatterplot for females
+
+smi_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+  scale_color_manual(values = c(female_color)) +
+  xlab("Body mass (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.50)), linetype = "solid", color = female_color, size = 1.5) +
+  labs(title = "Females (n = 67)") +
+  theme_plots()
+
+smi_fem
+
+print(smi_fem)
+smi_fem<-ggarrange(smi_fem, labels = c("A"))
+
+ggsave("figures/fig3/smi_fem_A.png", plot = smi_fem, 
+       width = 3, height = 4, dpi = 300,
+       bg="transparent")
+
+```
+
+
+### 1.2 Female path coefficient (Tarsus length).
+```{r}
+
+# Inspect data
+head(female_morpho)
+
+# Data preprocessing
+fe_sum <- female_morpho %>%
+  filter(!is.na(right_tarsus)) %>%
+  mutate(
+    tarsus = as.numeric(right_tarsus),
+    totaloff = as.numeric(totaloff),
+    totalmates = as.numeric(totalmates),
+    right_tarsus_scaled = as.numeric(scale(right_tarsus)
+  ))
+
+# Sample size (unique parents)
+fe_sum %>% distinct(parent) %>% count()  # n = 65
+
+# Assign variables
+fe_sum <- fe_sum %>%
+  mutate(
+    Z = scale(right_tarsus)[,1],  # standardised body mass
+    M = totalmates,
+    R = totaloff
+  )
+
+# Trait variance standardized and relative reproductive/mating success
+fe_sum <- fe_sum %>%
+  mutate(
+    Z = (right_tarsus - mean(right_tarsus)) / sd(right_tarsus),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+# ============================
+# Path Model Specification
+# ============================
+bc.model <- "
+  Z ~~ varZ*Z
+  M ~ bMZ*Z
+  R ~ bRM*M + bRZ*Z
+  xZ := varZ*bMZ*bRM
+  rZ := varZ*bRZ
+  sZ := varZ*bMZ*bRM + varZ*bRZ
+"
+
+# ============================
+# Fit Path Model
+# ============================
+bc.fit <- sem(bc.model, data = fe_sum, estimator = "GLS")
+summary(bc.fit)
+```
+```{r}
+# ============================
+# Compare with Jones (2009)
+# ============================
+Z <- fe_sum$Z
+M <- fe_sum$M
+R <- fe_sum$R
+
+betaMZ     <- coef(glm(M ~ Z))["Z"]
+betass     <- coef(glm(R ~ M))["M"]
+betaRM.Z   <- coef(glm(R ~ M + Z))["M"]
+betaRZ.M   <- coef(glm(R ~ M + Z))["Z"]
+
+results <- data.frame(
+  "Jones.2009" = c(
+    var(Z) * betaMZ * betass,
+    cov(Z, R) - var(Z) * betaMZ * betass,
+    cov(Z, R)
+  ),
+  "Our.Model" = c(
+    var(Z) * betaMZ * betaRM.Z,
+    var(Z) * betaRZ.M,
+    cov(Z, R)
+  ),
+  row.names = c("Sexual Selection", "Remaining Selection", "Total Selection")
+)
+
+print(results)
+```
+
+```{r}
+
+# ============================
+# Path Coefficients
+# ============================
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z))$coefficients["Z", 1]
+mod       <- glm(M ~ Z, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z + M))$coefficients["Z", 1]
+mod       <- glm(R ~ Z + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M))$coefficients["M", 1]
+mod       <- glm(R ~ M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+```{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
+mod       <- glm(R ~ Z + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 1000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+```{r}
+# ============================
+# Raw Path Coefficient Calculations
+# ============================
+our_model_raw <- c(
+  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
+  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
+  total.selection     = cov(Z, R, use = "complete.obs")
+)
+
+# ============================
+# Fit Poisson Models
+# ============================
+betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
+betaMZraw <- summary(glm(M ~ Z ))$coefficients["Z", 1]
+betaRZraw <- summary(glm(R ~ Z + M ))$coefficients["Z", 1]
+
+mod_RM <- glm(R ~ Z + M, data = fe_sum)
+mod_MZ <- glm(M ~ Z, data = fe_sum)
+mod_RZ <- glm(R ~ Z + M, data = fe_sum)
+
+# ============================
+# Posterior Simulation
+# ============================
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+betaRM_sims <- sim_RM@coef[, "M"]
+betaMZ_sims <- sim_MZ@coef[, "Z"]
+betaRZ_sims <- sim_RZ@coef[, "Z"]
+
+varZ  <- var(Z, na.rm = TRUE)
+covRZ <- cov(Z, R, use = "complete.obs")
+
+# ============================
+# Simulated Path Coefficients
+# ============================
+sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
+remaining_selection <- varZ * betaRZ_sims
+total_selection     <- sexual_selection + remaining_selection
+
+# Posterior probability > 0
+round(mean(sexual_selection > 0), 3)
+round(mean(remaining_selection > 0), 3)
+round(mean(total_selection > 0), 3)
+
+# ============================
+# Summarize Results
+# ============================
+summary_pathcoeff <- data.frame(
+  Parameter = c("Sexual Selection", "Remaining Selection", "Total Selection"),
+  Mean      = round(c(mean(sexual_selection), mean(remaining_selection), mean(total_selection)), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_selection, 0.025),
+    quantile(remaining_selection, 0.025),
+    quantile(total_selection, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_selection, 0.975),
+    quantile(remaining_selection, 0.975),
+    quantile(total_selection, 0.975)
+  ), 2)
+)
+
+
+print(summary_pathcoeff)
+
+```
+
+#### 1.2.1 Plot Selection gradient on tarsus length  controlling for M
+```{r}
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M , data = fe_sum)
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(fe_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(fe_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-2.21,3.06, length = 100),
+                      M= mean(fe_sum$M))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+newdat
+head(newdat) # Display the first few rows of 'newdat'
+### Create the scatterplot for females
+
+tarsus_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+  scale_color_manual(values = c(female_color)) +
+  xlab("Right tarsus length (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.50)), linetype = "solid", color = female_color, size = 1.5) +
+  labs(title = "Females (n = 68)") +
+  theme_plots()
+
+tarsus_fem
+
+print(tarsus_fem)
+tarsus_fem<-ggarrange(tarsus_fem, labels = c("C"))
+
+ggsave("figures/fig3/tarsus_fem_c.png", plot = tarsus_fem, 
+       width = 3, height = 4, dpi = 300,
+       bg="transparent")
+
+```
+
+
+### 1.3 Female path coefficient (tail length).
+```{r}
+# ============================
+# Inspect Data
+# ============================
+head(female_morpho)
+
+# ============================
+# Data Preprocessing
+# ============================
+fe_sum <- female_morpho %>%
+  filter(!is.na(tail_body)) %>%
+  mutate(
+    tail_body = as.numeric(tail_body),
+    totaloff = as.numeric(totaloff),
+    totalmates = as.numeric(totalmates),
+    tail_body = as.numeric(scale(tail_body))
+  )
+
+# Sample size (unique parents)
+fe_sum %>% distinct(parent) %>% count()  # n = 65
+
+# ============================
+# Assign Variables
+# ============================
+fe_sum <- fe_sum %>%
+  mutate(
+    Z = scaled_mass_index,
+    M = totalmates,
+    R = totaloff
+  )
+
+# Trait variance standardized and relative reproductive/mating success
+fe_sum <- fe_sum %>%
+  mutate(
+    Z = (tail_body - mean(tail_body)) / sd(tail_body),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+
+# ============================
+# Path Model Specification
+# ============================
+bc.model <- "
+  Z ~~ varZ*Z
+  M ~ bMZ*Z
+  R ~ bRM*M + bRZ*Z
+  xZ := varZ*bMZ*bRM
+  rZ := varZ*bRZ
+  sZ := varZ*bMZ*bRM + varZ*bRZ
+"
+
+# ============================
+# Fit Path Model
+# ============================
+bc.fit <- sem(bc.model, data = fe_sum, estimator = "GLS")
+summary(bc.fit)
+```
+
+```{r}
+# ============================
+# Compare with Jones (2009)
+# ============================
+Z <- fe_sum$Z
+M <- fe_sum$M
+R <- fe_sum$R
+
+betaMZ     <- coef(glm(M ~ Z))["Z"]
+betass     <- coef(glm(R ~ M))["M"]
+betaRM.Z   <- coef(glm(R ~ M + Z))["M"]
+betaRZ.M   <- coef(glm(R ~ M + Z))["Z"]
+
+results <- data.frame(
+  "Jones.2009" = c(
+    var(Z) * betaMZ * betass,
+    cov(Z, R) - var(Z) * betaMZ * betass,
+    cov(Z, R)
+  ),
+  "Our.Model" = c(
+    var(Z) * betaMZ * betaRM.Z,
+    var(Z) * betaRZ.M,
+    cov(Z, R)
+  ),
+  row.names = c("Sexual Selection", "Remaining Selection", "Total Selection")
+)
+
+print(results)
+
+```
+
+```{r}
+# ============================
+# Path Coefficients
+# ============================
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z))$coefficients["Z", 1]
+mod       <- glm(M ~ Z, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z + M))$coefficients["Z", 1]
+mod       <- glm(R ~ Z + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M))$coefficients["M", 1]
+mod       <- glm(R ~ M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
+mod       <- glm(R ~ Z + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 1000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+
+```
+```{r}
+# ============================
+# Raw Path Coefficient Calculations
+# ============================
+our_model_raw <- c(
+  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
+  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
+  total.selection     = sexual_selection + remaining_selection
+)
+
+# ============================
+# Fit Poisson Models
+# ============================
+betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
+betaMZraw <- summary(glm(M ~ Z ))$coefficients["Z", 1]
+betaRZraw <- summary(glm(R ~ Z + M ))$coefficients["Z", 1]
+
+mod_RM <- glm(R ~ Z + M, data = fe_sum)
+mod_MZ <- glm(M ~ Z, data = fe_sum)
+mod_RZ <- glm(R ~ Z + M, data = fe_sum)
+
+# ============================
+# Posterior Simulation
+# ============================
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+betaRM_sims <- sim_RM@coef[, "M"]
+betaMZ_sims <- sim_MZ@coef[, "Z"]
+betaRZ_sims <- sim_RZ@coef[, "Z"]
+
+varZ  <- var(Z, na.rm = TRUE)
+covRZ <- cov(Z, R, use = "complete.obs")
+
+# ============================
+# Simulated Path Coefficients
+# ============================
+sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
+remaining_selection <- varZ * betaRZ_sims
+total_selection     <- sexual_selection + remaining_selection
+
+# Posterior probability > 0
+round(mean(sexual_selection > 0), 3)
+round(mean(remaining_selection > 0), 3)
+round(mean(total_selection > 0), 3)
+
+# ============================
+# Summarize Results
+# ============================
+summary_pathcoeff <- data.frame(
+  Parameter = c("Sexual Selection", "Remaining Selection", "Total Selection"),
+  Mean      = round(c(mean(sexual_selection), mean(remaining_selection), mean(total_selection)), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_selection, 0.025),
+    quantile(remaining_selection, 0.025),
+    quantile(total_selection, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_selection, 0.975),
+    quantile(remaining_selection, 0.975),
+    quantile(total_selection, 0.975)
+  ), 2)
+)
+
+
+print(summary_pathcoeff)
+
+```
+#### 1.3.1 Plot Selection gradient on tail lenght controlling for M
+```{r}
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M , data = fe_sum)
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(fe_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(fe_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-2.17,  2.16, length = 100),
+                      M= mean(fe_sum$M))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+newdat
+head(newdat) # Display the first few rows of 'newdat'
+### Create the scatterplot for females
+
+tail_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+  scale_color_manual(values = c(female_color)) +
+  xlab("Tail length (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.50)), linetype = "solid", color = female_color, size = 1.5) +
+  labs(title = "Females (n = 65)") +
+  theme_plots()
+
+tail_fem
+
+print(tail_fem)
+tail_fem<-ggarrange(tail_fem, labels = c("E"))
+
+ggsave("figures/fig3/tail_fem_E.png", plot = tail_fem, 
+       width = 3, height = 4, dpi = 300,
+       bg="transparent")
+
+```
+
+
+
+### 1.4 Female path coefficient (scalled body mass).
+```{r}
+# ============================
+# Inspect Data
+# ============================
+head(female_morpho)
+
+# ============================
+# Data Preprocessing
+# ============================
+fe_sum <- female_morpho %>%
+  filter(!is.na(scaled_mass_index)) %>%
+  mutate(
+    scaled_mass_index = as.numeric(scaled_mass_index),
+    totaloff = as.numeric(totaloff),
+    totalmates = as.numeric(totalmates),
+    scaled_mass_index_scaled = as.numeric(scale(scaled_mass_index))
+  )
+
+# Sample size (unique parents)
+fe_sum %>% distinct(parent) %>% count()  # n = 67
+
+# ============================
+# Assign Variables
+# ============================
+fe_sum <- fe_sum %>%
+  mutate(
+    Z = scaled_mass_index,
+    M = totalmates,
+    R = totaloff
+  )
+
+# Trait variance standardized and relative reproductive/mating success
+fe_sum <- fe_sum %>%
+  mutate(
+     Z = (scaled_mass_index - mean(scaled_mass_index)) / sd(scaled_mass_index),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+
+# ============================
+# Path Model Specification
+# ============================
+bc.model <- "
+  Z ~~ varZ*Z
+  M ~ bMZ*Z
+  R ~ bRM*M + bRZ*Z
+  xZ := varZ*bMZ*bRM
+  rZ := varZ*bRZ
+  sZ := varZ*bMZ*bRM + varZ*bRZ
+"
+
+# ============================
+# Fit Path Model
+# ============================
+bc.fit <- sem(bc.model, data = fe_sum, estimator = "GLS")
+summary(bc.fit)
+```
+
+```{r}
+# ============================
+# Compare with Jones (2009)
+# ============================
+Z <- fe_sum$Z
+M <- fe_sum$M
+R <- fe_sum$R
+
+betaMZ     <- coef(glm(M ~ Z))["Z"]
+betass     <- coef(glm(R ~ M))["M"]
+betaRM.Z   <- coef(glm(R ~ M + Z))["M"]
+betaRZ.M   <- coef(glm(R ~ M + Z))["Z"]
+
+results <- data.frame(
+  "Jones.2009" = c(
+    var(Z) * betaMZ * betass,
+    cov(Z, R) - var(Z) * betaMZ * betass,
+    cov(Z, R)
+  ),
+  "Our.Model" = c(
+    var(Z) * betaMZ * betaRM.Z,
+    var(Z) * betaRZ.M,
+    cov(Z, R)
+  ),
+  row.names = c("Sexual Selection", "Remaining Selection", "Total Selection")
+)
+
+print(results)
+
+```
+
+```{r}
+# ============================
+# Path Coefficients
+# ============================
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z))$coefficients["Z", 1]
+mod       <- glm(M ~ Z, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z + M))$coefficients["Z", 1]
+mod       <- glm(R ~ Z + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M))$coefficients["M", 1]
+mod       <- glm(R ~ M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
+mod       <- glm(R ~ Z + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 1000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ============================
+# Raw Path Coefficient Calculations
+# ============================
+our_model_raw <- c(
+  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
+  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
+  total.selection     = sexual_selection + remaining_selection
+)
+```
+
+```{r}
+# ============================
+# Fit Poisson Models
+# ============================
+betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
+betaMZraw <- summary(glm(M ~ Z ))$coefficients["Z", 1]
+betaRZraw <- summary(glm(R ~ Z + M ))$coefficients["Z", 1]
+
+mod_RM <- glm(R ~ Z + M, data = fe_sum)
+mod_MZ <- glm(M ~ Z, data = fe_sum)
+mod_RZ <- glm(R ~ Z + M, data = fe_sum)
+
+# ============================
+# Posterior Simulation
+# ============================
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+betaRM_sims <- sim_RM@coef[, "M"]
+betaMZ_sims <- sim_MZ@coef[, "Z"]
+betaRZ_sims <- sim_RZ@coef[, "Z"]
+
+varZ  <- var(Z, na.rm = TRUE)
+covRZ <- cov(Z, R, use = "complete.obs")
+```
+
+```{r}
+# ============================
+# Simulated Path Coefficients
+# ============================
+sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
+remaining_selection <- varZ * betaRZ_sims
+total_selection     <- sexual_selection + remaining_selection
+
+# Posterior probability > 0
+round(mean(sexual_selection > 0), 3)
+round(mean(remaining_selection > 0), 3)
+round(mean(total_selection > 0), 3)
+
+# ============================
+# Summarize Results
+# ============================
+summary_pathcoeff <- data.frame(
+  Parameter = c("Sexual Selection", "Remaining Selection", "Total Selection"),
+  Mean      = round(c(mean(sexual_selection), mean(remaining_selection), mean(total_selection)), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_selection, 0.025),
+    quantile(remaining_selection, 0.025),
+    quantile(total_selection, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_selection, 0.975),
+    quantile(remaining_selection, 0.975),
+    quantile(total_selection, 0.975)
+  ), 2)
+)
+
+
+print(summary_pathcoeff)
+
+```
+
+
+#### 1.4.1 Plot Selection gradient on scalled body mass  controlling for M
+```{r}
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M , data = fe_sum)
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(fe_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(fe_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-2.21,  2.38, length = 100),
+                      M= mean(fe_sum$M))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+newdat
+head(newdat) # Display the first few rows of 'newdat'
+### Create the scatterplot for females
+
+smb_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+  scale_color_manual(values = c(female_color)) +
+  xlab("Scaled mass index (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.50)), linetype = "solid", color = female_color, size = 1.5) +
+  labs(title = "Females (n = 67)") +
+  theme_plots()
+
+smb_fem
+
+print(smb_fem)
+smb_fem<-ggarrange(smb_fem, labels = c("G"))
+
+ggsave("figures/fig3/smb_fem_G.png", plot = smb_fem, 
+       width = 3, height = 4, dpi = 300,
+       bg="transparent")
+
+```
+
+
+
+
+#2. Table 3: Path coefficients Males (by category)
+### 2.1 Male path coefficient (body mass).
+```{r}
+# ============================
+# Inspect Data
+# ============================
+head(male_morpho)
+
+# ============================
+# Data Preprocessing
+# ============================
+ma_sum <- male_morpho %>%
+  filter(!is.na(body_mass)) %>%
+  mutate(
+    body_mass = as.numeric(body_mass),
+    totaloff = as.numeric(totaloff),
+    totalmates = as.numeric(totalmates),
+    scaled_bodymass = as.numeric(scale(body_mass))
+  )
+
+# Sample size (unique parents)
+ma_sum %>% distinct(parent) %>% count()  # n = 92
+
+# ============================
+# Assign Variables
+# ============================
+ma_sum <- ma_sum %>%
+  mutate(
+    Z = body_mass,
+    M = totalmates,
+    R = totaloff
+  )
+
+# Trait variance standardized and relative reproductive/mating success
+ma_sum <- ma_sum %>%
+  mutate(
+     Z = (body_mass - mean(body_mass)) / sd(body_mass),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+
+
+# ============================
+# Path Model Specification
+# ============================
+bc.model <- "
+  Z ~~ varZ*Z
+  M ~ bMZ*Z
+  R ~ bRM*M + bRZ*Z
+  xZ := varZ*bMZ*bRM
+  rZ := varZ*bRZ
+  sZ := varZ*bMZ*bRM + varZ*bRZ
+"
+
+# ============================
+# Fit Path Model
+# ============================
+bc.fit <- sem(bc.model, data = ma_sum, estimator = "GLS")
+summary(bc.fit)
+
+# ============================
+# Compare with Jones (2009)
+# ============================
+Z <- ma_sum$Z
+M <- ma_sum$M
+R <- ma_sum$R
+cat <- ma_sum$category
+
+betaMZ     <- coef(glm(M ~ Z*cat))["Z"]
+betass     <- coef(glm(R ~ M*cat))["M"]
+betaRM.Z   <- coef(glm(R ~ M + Z*cat))["M"]
+betaRZ.M   <- coef(glm(R ~ M + Z*cat))["Z"]
+
+results <- data.frame(
+  "Jones.2009" = c(
+    var(Z) * betaMZ * betass,
+    cov(Z, R) - var(Z) * betaMZ * betass,
+    cov(Z, R)
+  ),
+  "Our.Model" = c(
+    var(Z) * betaMZ * betaRM.Z,
+    var(Z) * betaRZ.M,
+    cov(Z, R)
+  ),
+  row.names = c("Sexual Selection", "Remaining Selection", "Total Selection")
+)
+
+print(results)
+```
+
+```{r}
+# ============================
+# Path Coefficients
+# ============================
+
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z*cat))$coefficients["Z", 1]
+mod       <- glm(M ~ Z*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "Z"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)),2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "Z"] +bsim@coef[, "Z:cat3malesENO"]
+# Summaries for the other category
+round(mean(slope_3malesENO), 2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+
+
+```
+
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z*cat + M*cat))$coefficients["Z", 1]
+mod <- glm(R ~ Z * cat + M * cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "Z"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "Z"] + bsim@coef[, "Z:cat3malesENO"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+
+```{r}
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ M *cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+
+colnames(bsim@coef)
+# Assuming cat2 is the reference level
+intercept_2males <- bsim@coef[, "(Intercept)"]
+intercept_3malesENO <- bsim@coef[, "(Intercept)"] + bsim@coef[, "cat3malesENO"]
+
+slope_2males <- bsim@coef[, "M"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"] + bsim@coef[, "M:cat3malesENO"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+```{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~ Z + M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ Z + M*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 1000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "M"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)),2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"] + bsim@coef[, "M:cat3malesENO"]
+round(mean(slope_3malesENO), 2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+
+```{r}
+# ============================
+# Raw Path Coefficient Calculations
+# ============================
+our_model_raw <- c(
+  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
+  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
+  total.selection     = rep(covRZ, n_sim)
+)
+```
+
+```{r}
+# ============================
+# Fit Poisson Models - 
+# ============================
+betaRMraw <- summary(glm(R ~ Z + M*cat))$coefficients["M", 1]
+betaMZraw <- summary(glm(M ~ Z*cat ))$coefficients["Z", 1]
+betaRZraw <- summary(glm(R ~ Z*cat + M*cat ))$coefficients["Z", 1]
+
+sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
+remaining_selection <- varZ * betaRZ_sims
+total_selection     <- sexual_selection + remaining_selection
+
+
+# ============================
+# Simulated Path Coefficients
+# ============================
+
+mod_RM <- glm(R ~ Z + M*cat , data = ma_sum)
+mod_MZ <- glm(M ~ Z*cat, data = ma_sum)
+mod_RZ <- glm(R ~ Z*cat + M*cat, data = ma_sum)
+
+# Simulate posterior samples
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+# Category: cat2 (reference level)
+betaMZ_cat2 <- sim_MZ@coef[, "Z"]
+betaRM_cat2 <- sim_RM@coef[, "M"]
+betaRZ_cat2 <- sim_RZ@coef[, "Z"]
+
+# Category: cat3 (add interaction terms)
+betaMZ_cat3 <- betaMZ_cat2 + sim_MZ@coef[, "Z:cat3malesENO"]
+betaRM_cat3 <- betaRM_cat2 + sim_RM@coef[, "M:cat3malesENO"]  # if exists
+betaRZ_cat3 <- betaRZ_cat2 + sim_RZ@coef[, "Z:cat3malesENO"]
+
+
+varZ <- var(ma_sum$Z, na.rm = TRUE)
+
+# cat2 (reference)
+sexual_cat2    <- varZ * betaRM_cat2 * betaMZ_cat2
+remaining_cat2 <- varZ * betaRZ_cat2
+total_cat2     <- sexual_cat2 + remaining_cat2
+
+# cat3 (interaction-adjusted)
+sexual_cat3    <- varZ * betaRM_cat3 * betaMZ_cat3
+remaining_cat3 <- varZ * betaRZ_cat3
+total_cat3     <- sexual_cat3 + remaining_cat3
+
+summary_pathcoeff <- data.frame(
+  Category  = rep(c("2males", "3malesENO"), each = 3),
+  Parameter = rep(c("Sexual Selection", "Remaining Selection", "Total Selection"), times = 2),
+  Mean      = round(c(
+    mean(sexual_cat2), mean(remaining_cat2), mean(total_cat2),
+    mean(sexual_cat3), mean(remaining_cat3), mean(total_cat3)
+  ), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_cat2, 0.025), quantile(remaining_cat2, 0.025), quantile(total_cat2, 0.025),
+    quantile(sexual_cat3, 0.025), quantile(remaining_cat3, 0.025), quantile(total_cat3, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_cat2, 0.975), quantile(remaining_cat2, 0.975), quantile(total_cat2, 0.975),
+    quantile(sexual_cat3, 0.975), quantile(remaining_cat3, 0.975), quantile(total_cat3, 0.975)
+  ), 2)
+)
+
+print(summary_pathcoeff)
+
+#Calculate posterior probabilities
+posterior_probs <- data.frame(
+  Category  = c("2males", "3malesENO"),
+  Sexual_Selection    = round(c(mean(sexual_cat2 > 0), mean(sexual_cat3 > 0)), 3),
+  Remaining_Selection = round(c(mean(remaining_cat2 > 0), mean(remaining_cat3 > 0)), 3),
+  Total_Selection     = round(c(mean(total_cat2 > 0), mean(total_cat3 > 0)), 3)
+)
+
+print(posterior_probs)
+
+
+
+```
+
+#### 2.1.2 Plot Selection gradient on body mass controlling for M
+```{r}
+
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M *cat, data = ma_sum)
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(ma_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(ma_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-3.70, 3, length = 100),
+                      M= mean(ma_sum$M),
+                      cat = levels(ma_sum$cat))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M*cat, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+newdat
+head(newdat) # Display the first few rows of 'newdat'
+
+# Assuming `category` is the column in `ma_sum`:
+table(ma_sum$cat)
+
+# Or store them:
+n_3malesENO <- sum(ma_sum$cat == "3malesENO")
+n_2males <- sum(ma_sum$cat == "2males")
+
+
+smi_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = cat), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+  xlab("Body mass (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = lwr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = upr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = fit, color = cat), size = 1.5, ,show.legend = FALSE) +
+  labs(title = "Males (n = 92)") +
+  scale_color_manual(
+    values = c("3malesENO" = "orange", "2males" = "blue"),
+    labels = c(
+      paste0("without (n = ", n_2males, ")"),
+      paste0("with (n = ", n_3malesENO, ")")
+    ),
+    name = "Extra-nest offspring"
+  ) +
+  theme_plots() +
+  theme(
+    legend.position = c(0.98, 0.98),  # top right corner
+    legend.justification = c("right", "top"),
+    legend.background = element_rect(fill = "white", color = "black"),
+    legend.key = element_rect(fill = NA)
+  )+
+  guides(color = guide_legend(
+    override.aes = list(alpha = 1)  # Legend points fully opaque
+  ))
+
+
+smi_ma 
+
+print(smi_ma)
+smi_ma<-ggarrange(smi_ma, labels = c("B"))
+
+ggsave("figures/fig3/smi_ma_B.png", plot = smi_ma, 
+       width = 3, height = 4, dpi = 300,
+       bg="transparent")
+```
+### 2.2 Male path coefficient (tarsus length).
+```{r}
+# ============================
+# Inspect Data
+# ============================
+head(male_morpho)
+
+# ============================
+# Data Preprocessing
+# ============================
+ma_sum <- male_morpho %>%
+  filter(!is.na(right_tarsus)) %>%
+  mutate(
+    right_tarsus = as.numeric(right_tarsus),
+    totaloff = as.numeric(totaloff),
+    totalmates = as.numeric(totalmates),
+    scaled_right_tarsus = as.numeric(scale(right_tarsus))
+  )
+
+# Sample size (unique parents)
+ma_sum %>% distinct(parent) %>% count()  # n = 94
+
+# ============================
+# Assign Variables
+# ============================
+ma_sum <- ma_sum %>%
+  mutate(
+    Z = right_tarsus,
+    M = totalmates,
+    R = totaloff
+  )
+
+# Trait variance standardized and relative reproductive/mating success
+ma_sum <- ma_sum %>%
+  mutate(
+     Z = (right_tarsus - mean(right_tarsus)) / sd(right_tarsus),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+
+
+# ============================
+# Path Model Specification
+# ============================
+bc.model <- "
+  Z ~~ varZ*Z
+  M ~ bMZ*Z
+  R ~ bRM*M + bRZ*Z
+  xZ := varZ*bMZ*bRM
+  rZ := varZ*bRZ
+  sZ := varZ*bMZ*bRM + varZ*bRZ
+"
+
+# ============================
+# Fit Path Model
+# ============================
+bc.fit <- sem(bc.model, data = ma_sum, estimator = "GLS")
+summary(bc.fit)
+```
+
+```{r}
+# ============================
+# Compare with Jones (2009)
+# ============================
+Z <- ma_sum$Z
+M <- ma_sum$M
+R <- ma_sum$R
+cat <- ma_sum$category
+
+betaMZ     <- coef(glm(M ~ Z*cat))["Z"]
+betass     <- coef(glm(R ~ M*cat))["M"]
+betaRM.Z   <- coef(glm(R ~ M + Z*cat))["M"]
+betaRZ.M   <- coef(glm(R ~ M + Z*cat))["Z"]
+
+results <- data.frame(
+  "Jones.2009" = c(
+    var(Z) * betaMZ * betass,
+    cov(Z, R) - var(Z) * betaMZ * betass,
+    cov(Z, R)
+  ),
+  "Our.Model" = c(
+    var(Z) * betaMZ * betaRM.Z,
+    var(Z) * betaRZ.M,
+    cov(Z, R)
+  ),
+  row.names = c("Sexual Selection", "Remaining Selection", "Total Selection")
+)
+
+print(results)
+
+```
+```{r}
+# ============================
+# Path Coefficients
+# ============================
+
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z*cat))$coefficients["Z", 1]
+mod       <- glm(M ~ Z*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+
+slope_2males <- bsim@coef[, "Z"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)),2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "Z"] +bsim@coef[, "Z:cat3malesENO"]
+# Summaries for the other category
+round(mean(slope_3malesENO), 2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z*cat + M*cat))$coefficients["Z", 1]
+mod <- glm(R ~ Z * cat + M * cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "Z"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "Z"] + bsim@coef[, "Z:cat3malesENO"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+
+```
+```{r}
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ M *cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+
+colnames(bsim@coef)
+# Assuming cat2 is the reference level
+intercept_2males <- bsim@coef[, "(Intercept)"]
+intercept_3malesENO <- bsim@coef[, "(Intercept)"] + bsim@coef[, "cat3malesENO"]
+
+slope_2males <- bsim@coef[, "M"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"] + bsim@coef[, "M:cat3malesENO"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+
+```{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~ Z + M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ Z + M*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 1000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "M"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)),2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"] + bsim@coef[, "M:cat3malesENO"]
+round(mean(slope_3malesENO), 2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+
+```{r}
+# ============================
+# Raw Path Coefficient Calculations
+# ============================
+our_model_raw <- c(
+  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
+  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
+  total.selection     = rep(covRZ, n_sim)
+)
+
+# ============================
+# Fit Poisson Models - 
+# ============================
+betaRMraw <- summary(glm(R ~ Z + M*cat))$coefficients["M", 1]
+betaMZraw <- summary(glm(M ~ Z*cat ))$coefficients["Z", 1]
+betaRZraw <- summary(glm(R ~ Z*cat + M*cat ))$coefficients["Z", 1]
+
+sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
+remaining_selection <- varZ * betaRZ_sims
+total_selection     <- sexual_selection + remaining_selection
+
+```
+
+```{r}
+# ============================
+# Simulated Path Coefficients
+# ============================
+
+mod_RM <- glm(R ~ Z + M*cat , data = ma_sum)
+mod_MZ <- glm(M ~ Z*cat, data = ma_sum)
+mod_RZ <- glm(R ~ Z*cat + M*cat, data = ma_sum)
+
+# Simulate posterior samples
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+# Category: cat2 (reference level)
+betaMZ_cat2 <- sim_MZ@coef[, "Z"]
+betaRM_cat2 <- sim_RM@coef[, "M"]
+betaRZ_cat2 <- sim_RZ@coef[, "Z"]
+
+# Category: cat3 (add interaction terms)
+betaMZ_cat3 <- betaMZ_cat2 + sim_MZ@coef[, "Z:cat3malesENO"]
+betaRM_cat3 <- betaRM_cat2 + sim_RM@coef[, "M:cat3malesENO"]  # if exists
+betaRZ_cat3 <- betaRZ_cat2 + sim_RZ@coef[, "Z:cat3malesENO"]
+
+
+varZ <- var(ma_sum$Z, na.rm = TRUE)
+
+# cat2 (reference)
+sexual_cat2    <- varZ * betaRM_cat2 * betaMZ_cat2
+remaining_cat2 <- varZ * betaRZ_cat2
+total_cat2     <- sexual_cat2 + remaining_cat2
+
+# cat3 (interaction-adjusted)
+sexual_cat3    <- varZ * betaRM_cat3 * betaMZ_cat3
+remaining_cat3 <- varZ * betaRZ_cat3
+total_cat3     <- sexual_cat3 + remaining_cat3
+
+summary_pathcoeff <- data.frame(
+  Category  = rep(c("2males", "3malesENO"), each = 3),
+  Parameter = rep(c("Sexual Selection", "Remaining Selection", "Total Selection"), times = 2),
+  Mean      = round(c(
+    mean(sexual_cat2), mean(remaining_cat2), mean(total_cat2),
+    mean(sexual_cat3), mean(remaining_cat3), mean(total_cat3)
+  ), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_cat2, 0.025), quantile(remaining_cat2, 0.025), quantile(total_cat2, 0.025),
+    quantile(sexual_cat3, 0.025), quantile(remaining_cat3, 0.025), quantile(total_cat3, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_cat2, 0.975), quantile(remaining_cat2, 0.975), quantile(total_cat2, 0.975),
+    quantile(sexual_cat3, 0.975), quantile(remaining_cat3, 0.975), quantile(total_cat3, 0.975)
+  ), 2)
+)
+
+print(summary_pathcoeff)
+
+#Calculate posterior probabilities
+posterior_probs <- data.frame(
+  Category  = c("2males", "3malesENO"),
+  Sexual_Selection    = round(c(mean(sexual_cat2 > 0), mean(sexual_cat3 > 0)), 3),
+  Remaining_Selection = round(c(mean(remaining_cat2 > 0), mean(remaining_cat3 > 0)), 3),
+  Total_Selection     = round(c(mean(total_cat2 > 0), mean(total_cat3 > 0)), 3)
+)
+
+print(posterior_probs)
+
+
+
+```
+
+#### 2.2.1 Plot Selection gradient on tarsus length controlling for M
+```{r}
+
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M *cat, data = ma_sum)
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(ma_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(ma_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-2.67, 2.60, length = 100),
+                      M= mean(ma_sum$M),
+                      cat = levels(ma_sum$category))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M*cat, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+newdat
+head(newdat) # Display the first few rows of 'newdat'
+
+### Create the scatterplot for females
+# Assuming `category` is the column in `ma_sum`:
+table(ma_sum$category)
+
+# Or store them:
+n_2males<- sum(ma_sum$category == "2males")
+n_3males <- sum(ma_sum$category == "3malesENO")
+
+
+tarsus_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = category), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+  scale_color_manual(
+    values = c("3malesENO" = "orange", "2males" = "blue"),
+    labels = c(
+      paste0("without (n = ", n_2males, ")"),
+      paste0("with (n = ", n_3malesENO, ")")
+    ),
+    name = "Extra-nest offspring"
+  ) +
+  xlab("Right tarsus length (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = lwr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = upr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = fit, color = cat), size = 1.5, ,show.legend = FALSE) +
+  labs(title = "Males (n = 94)") +
+  theme_plots() +
+  theme(
+    legend.position = c(0.98, 0.98),  # top right corner
+    legend.justification = c("right", "top"),
+    legend.background = element_rect(fill = "white", color = "black"),
+    legend.key = element_rect(fill = NA)
+  )+
+  guides(color = guide_legend(
+    override.aes = list(alpha = 1)  # Legend points fully opaque
+  ))
+
+
+tarsus_ma 
+
+print(tarsus_ma )
+tarsus_ma<-ggarrange(tarsus_ma , labels = c("D"))
+
+ggsave("figures/fig3/tarsus_ma_D.png", plot = tarsus_ma  , 
+       width = 3, height = 4, dpi = 300,
+       bg="transparent")
+```
+### 2.3 Male path coefficient (tail length).
+```{r}
+# ============================
+# Inspect Data
+# ============================
+head(male_morpho)
+
+# ============================
+# Data Preprocessing
+# ============================
+ma_sum <- male_morpho %>%
+  filter(!is.na(tail_body)) %>%
+  mutate(
+    tail_body = as.numeric(tail_body),
+    totaloff = as.numeric(totaloff),
+    totalmates = as.numeric(totalmates),
+    scaled_tail_body = as.numeric(scale(tail_body))
+  )
+
+# Sample size (unique parents)
+ma_sum %>% distinct(parent) %>% count()  # n = 93
+
+# ============================
+# Assign Variables
+# ============================
+ma_sum <- ma_sum %>%
+  mutate(
+    Z = tail_body,
+    M = totalmates,
+    R = totaloff
+  )
+
+# Trait variance standardized and relative reproductive/mating success
+ma_sum <- ma_sum %>%
+  mutate(
+     Z = (tail_body - mean(tail_body)) / sd(tail_body),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+
+
+# ============================
+# Path Model Specification
+# ============================
+bc.model <- "
+  Z ~~ varZ*Z
+  M ~ bMZ*Z
+  R ~ bRM*M + bRZ*Z
+  xZ := varZ*bMZ*bRM
+  rZ := varZ*bRZ
+  sZ := varZ*bMZ*bRM + varZ*bRZ
+"
+
+# ============================
+# Fit Path Model
+# ============================
+bc.fit <- sem(bc.model, data = ma_sum, estimator = "GLS")
+summary(bc.fit)
+```
+
+```{r}
+# ============================
+# Compare with Jones (2009)
+# ============================
+Z <- ma_sum$Z
+M <- ma_sum$M
+R <- ma_sum$R
+cat <- ma_sum$category
+
+betaMZ     <- coef(glm(M ~ Z*cat))["Z"]
+betass     <- coef(glm(R ~ M*cat))["M"]
+betaRM.Z   <- coef(glm(R ~ M + Z*cat))["M"]
+betaRZ.M   <- coef(glm(R ~ M + Z*cat))["Z"]
+
+results <- data.frame(
+  "Jones.2009" = c(
+    var(Z) * betaMZ * betass,
+    cov(Z, R) - var(Z) * betaMZ * betass,
+    cov(Z, R)
+  ),
+  "Our.Model" = c(
+    var(Z) * betaMZ * betaRM.Z,
+    var(Z) * betaRZ.M,
+    cov(Z, R)
+  ),
+  row.names = c("Sexual Selection", "Remaining Selection", "Total Selection")
+)
+
+print(results)
+
+```
+
+```{r}
+# ============================
+# Path Coefficients
+# ============================
+
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z*cat))$coefficients["Z", 1]
+mod       <- glm(M ~ Z*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+
+slope_2males <- bsim@coef[, "Z"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)),2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "Z"] +bsim@coef[, "Z:cat3malesENO"]
+# Summaries for the other category
+round(mean(slope_3malesENO), 2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z*cat + M*cat))$coefficients["Z", 1]
+mod <- glm(R ~ Z * cat + M * cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "Z"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "Z"] + bsim@coef[, "Z:cat3malesENO"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+
+```{r}
+
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ M *cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+
+colnames(bsim@coef)
+# Assuming cat2 is the reference level
+intercept_2males <- bsim@coef[, "(Intercept)"]
+intercept_3malesENO <- bsim@coef[, "(Intercept)"] + bsim@coef[, "cat3malesENO"]
+
+slope_2males <- bsim@coef[, "M"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"] + bsim@coef[, "M:cat3malesENO"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+```{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~ Z + M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ Z + M*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 1000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "M"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)),2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"] + bsim@coef[, "M:cat3malesENO"]
+round(mean(slope_3malesENO), 2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+```{r}
+# ============================
+# Raw Path Coefficient Calculations
+# ============================
+our_model_raw <- c(
+  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
+  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
+  total.selection     = rep(covRZ, n_sim)
+)
+
+# ============================
+# Fit Poisson Models - 
+# ============================
+betaRMraw <- summary(glm(R ~ Z + M*cat))$coefficients["M", 1]
+betaMZraw <- summary(glm(M ~ Z*cat ))$coefficients["Z", 1]
+betaRZraw <- summary(glm(R ~ Z*cat + M*cat ))$coefficients["Z", 1]
+
+sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
+remaining_selection <- varZ * betaRZ_sims
+total_selection     <- sexual_selection + remaining_selection
+
+```
+
+```{r}
+# ============================
+# Simulated Path Coefficients
+# ============================
+
+mod_RM <- glm(R ~ Z + M*cat , data = ma_sum)
+mod_MZ <- glm(M ~ Z*cat, data = ma_sum)
+mod_RZ <- glm(R ~ Z*cat + M*cat, data = ma_sum)
+
+# Simulate posterior samples
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+# Category: cat2 (reference level)
+betaMZ_cat2 <- sim_MZ@coef[, "Z"]
+betaRM_cat2 <- sim_RM@coef[, "M"]
+betaRZ_cat2 <- sim_RZ@coef[, "Z"]
+
+# Category: cat3 (add interaction terms)
+betaMZ_cat3 <- betaMZ_cat2 + sim_MZ@coef[, "Z:cat3malesENO"]
+betaRM_cat3 <- betaRM_cat2 + sim_RM@coef[, "M:cat3malesENO"]  # if exists
+betaRZ_cat3 <- betaRZ_cat2 + sim_RZ@coef[, "Z:cat3malesENO"]
+
+
+varZ <- var(ma_sum$Z, na.rm = TRUE)
+
+# cat2 (reference)
+sexual_cat2    <- varZ * betaRM_cat2 * betaMZ_cat2
+remaining_cat2 <- varZ * betaRZ_cat2
+total_cat2     <- sexual_cat2 + remaining_cat2
+
+# cat3 (interaction-adjusted)
+sexual_cat3    <- varZ * betaRM_cat3 * betaMZ_cat3
+remaining_cat3 <- varZ * betaRZ_cat3
+total_cat3     <- sexual_cat3 + remaining_cat3
+
+summary_pathcoeff <- data.frame(
+  Category  = rep(c("2males", "3malesENO"), each = 3),
+  Parameter = rep(c("Sexual Selection", "Remaining Selection", "Total Selection"), times = 2),
+  Mean      = round(c(
+    mean(sexual_cat2), mean(remaining_cat2), mean(total_cat2),
+    mean(sexual_cat3), mean(remaining_cat3), mean(total_cat3)
+  ), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_cat2, 0.025), quantile(remaining_cat2, 0.025), quantile(total_cat2, 0.025),
+    quantile(sexual_cat3, 0.025), quantile(remaining_cat3, 0.025), quantile(total_cat3, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_cat2, 0.975), quantile(remaining_cat2, 0.975), quantile(total_cat2, 0.975),
+    quantile(sexual_cat3, 0.975), quantile(remaining_cat3, 0.975), quantile(total_cat3, 0.975)
+  ), 2)
+)
+
+print(summary_pathcoeff)
+
+#Calculate posterior probabilities
+posterior_probs <- data.frame(
+  Category  = c("2males", "3malesENO"),
+  Sexual_Selection    = round(c(mean(sexual_cat2 > 0), mean(sexual_cat3 > 0)), 3),
+  Remaining_Selection = round(c(mean(remaining_cat2 > 0), mean(remaining_cat3 > 0)), 3),
+  Total_Selection     = round(c(mean(total_cat2 > 0), mean(total_cat3 > 0)), 3)
+)
+
+print(posterior_probs)
+
+
+```
+
+#### 2.3.2 Plot Selection gradient on tail length controlling for M
+```{r}
+
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M *cat, data = ma_sum)
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(ma_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(ma_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-3.58, 2.75, length = 100),
+                      M= mean(ma_sum$M),
+                      cat = levels(ma_sum$category))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M*cat, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+newdat
+head(newdat) # Display the first few rows of 'newdat'
+
+### Create the scatterplot for females
+# Assuming `category` is the column in `ma_sum`:
+table(ma_sum$category)
+
+# Or store them:
+n_3malesENO <- sum(ma_sum$category == "3malesENO")
+n_2males <- sum(ma_sum$category == "2males")
+
+
+tail_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = category), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+   scale_color_manual(
+    values = c("3malesENO" = "orange", "2males" = "blue"),
+    labels = c(
+      paste0("without (n = ", n_2males, ")"),
+      paste0("with (n = ", n_3malesENO, ")")
+    ),
+    name = "Extra-nest offspring"
+  ) +
+  xlab("Tail length (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = lwr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = upr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = fit, color = cat), size = 1.5, ,show.legend = FALSE) +
+  labs(title = "Males (n = 93)") +
+  theme_plots() +
+  theme(
+    legend.position = c(0.98, 0.98),  # top right corner
+    legend.justification = c("right", "top"),
+    legend.background = element_rect(fill = "white", color = "black"),
+    legend.key = element_rect(fill = NA)
+  )+
+  guides(color = guide_legend(
+    override.aes = list(alpha = 1)  # Legend points fully opaque
+  ))
+
+
+tail_ma 
+
+print(tail_ma)
+tail_ma<-ggarrange(tail_ma, labels = c("F"))
+
+ggsave("figures/fig3/tail_ma_F.png", plot = tail_ma , 
+       width = 3, height = 4, dpi = 300,
+       bg="transparent")
+```
+
+
+### 2.3 Male path coefficient (scaled body mass).
+```{r}
+# ============================
+# Inspect Data
+# ============================
+head(male_morpho)
+
+# ============================
+# Data Preprocessing
+# ============================
+ma_sum <- male_morpho %>%
+  filter(!is.na(scaled_mass_index)) %>%
+  mutate(
+    scaled_mass_index = as.numeric(scaled_mass_index),
+    totaloff = as.numeric(totaloff),
+    totalmates = as.numeric(totalmates),
+    scaled_scaled_mass_index = as.numeric(scale(scaled_mass_index))
+  )
+
+# Sample size (unique parents)
+ma_sum %>% distinct(parent) %>% count()  # n = 92
+
+# ============================
+# Assign Variables
+# ============================
+ma_sum <- ma_sum %>%
+  mutate(
+    Z = scaled_mass_index,
+    M = totalmates,
+    R = totaloff
+  )
+
+# Trait variance standardized and relative reproductive/mating success
+ma_sum <- ma_sum %>%
+  mutate(
+     Z = (scaled_mass_index - mean(scaled_mass_index)) / sd(scaled_mass_index),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+
+
+# ============================
+# Path Model Specification
+# ============================
+bc.model <- "
+  Z ~~ varZ*Z
+  M ~ bMZ*Z
+  R ~ bRM*M + bRZ*Z
+  xZ := varZ*bMZ*bRM
+  rZ := varZ*bRZ
+  sZ := varZ*bMZ*bRM + varZ*bRZ
+"
+
+# ============================
+# Fit Path Model
+# ============================
+bc.fit <- sem(bc.model, data = ma_sum, estimator = "GLS")
+summary(bc.fit)
+```
+
+```{r}
+# ============================
+# Compare with Jones (2009)
+# ============================
+Z <- ma_sum$Z
+M <- ma_sum$M
+R <- ma_sum$R
+cat <- ma_sum$category
+
+betaMZ     <- coef(glm(M ~ Z*cat))["Z"]
+betass     <- coef(glm(R ~ M*cat))["M"]
+betaRM.Z   <- coef(glm(R ~ M + Z*cat))["M"]
+betaRZ.M   <- coef(glm(R ~ M + Z*cat))["Z"]
+
+results <- data.frame(
+  "Jones.2009" = c(
+    var(Z) * betaMZ * betass,
+    cov(Z, R) - var(Z) * betaMZ * betass,
+    cov(Z, R)
+  ),
+  "Our.Model" = c(
+    var(Z) * betaMZ * betaRM.Z,
+    var(Z) * betaRZ.M,
+    cov(Z, R)
+  ),
+  row.names = c("Sexual Selection", "Remaining Selection", "Total Selection")
+)
+
+print(results)
+
+```
+
+```{r}
+# ============================
+# Path Coefficients
+# ============================
+
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z*cat))$coefficients["Z", 1]
+mod       <- glm(M ~ Z*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+
+slope_2males <- bsim@coef[, "Z"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)),2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "Z"] +bsim@coef[, "Z:cat3malesENO"]
+# Summaries for the other category
+round(mean(slope_3malesENO), 2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z*cat + M*cat))$coefficients["Z", 1]
+mod <- glm(R ~ Z * cat + M * cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "Z"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "Z"] + bsim@coef[, "Z:cat3malesENO"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+
+```
+
+```{r}
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ M *cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+
+colnames(bsim@coef)
+# Assuming cat2 is the reference level
+intercept_2males <- bsim@coef[, "(Intercept)"]
+intercept_3malesENO <- bsim@coef[, "(Intercept)"] + bsim@coef[, "cat3malesENO"]
+
+slope_2males <- bsim@coef[, "M"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"] + bsim@coef[, "M:cat3malesENO"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+
+```{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~ Z + M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ Z + M*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 1000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "M"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)),2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"] + bsim@coef[, "M:cat3malesENO"]
+round(mean(slope_3malesENO), 2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+```
+
+
+```{r}
+# ============================
+# Simulated Path Coefficients
+# ============================
+
+mod_RM <- glm(R ~ Z + M*cat , data = ma_sum)
+mod_MZ <- glm(M ~ Z*cat, data = ma_sum)
+mod_RZ <- glm(R ~ Z*cat + M*cat, data = ma_sum)
+
+# Simulate posterior samples
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+# Category: cat2 (reference level)
+betaMZ_cat2 <- sim_MZ@coef[, "Z"]
+betaRM_cat2 <- sim_RM@coef[, "M"]
+betaRZ_cat2 <- sim_RZ@coef[, "Z"]
+
+# Category: cat3 (add interaction terms)
+betaMZ_cat3 <- betaMZ_cat2 + sim_MZ@coef[, "Z:cat3malesENO"]
+betaRM_cat3 <- betaRM_cat2 + sim_RM@coef[, "M:cat3malesENO"]  # if exists
+betaRZ_cat3 <- betaRZ_cat2 + sim_RZ@coef[, "Z:cat3malesENO"]
+
+
+varZ <- var(ma_sum$Z, na.rm = TRUE)
+
+# cat2 (reference)
+sexual_cat2    <- varZ * betaRM_cat2 * betaMZ_cat2
+remaining_cat2 <- varZ * betaRZ_cat2
+total_cat2     <- sexual_cat2 + remaining_cat2
+
+# cat3 (interaction-adjusted)
+sexual_cat3    <- varZ * betaRM_cat3 * betaMZ_cat3
+remaining_cat3 <- varZ * betaRZ_cat3
+total_cat3     <- sexual_cat3 + remaining_cat3
+
+summary_pathcoeff <- data.frame(
+  Category  = rep(c("2males", "3malesENO"), each = 3),
+  Parameter = rep(c("Sexual Selection", "Remaining Selection", "Total Selection"), times = 2),
+  Mean      = round(c(
+    mean(sexual_cat2), mean(remaining_cat2), mean(total_cat2),
+    mean(sexual_cat3), mean(remaining_cat3), mean(total_cat3)
+  ), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_cat2, 0.025), quantile(remaining_cat2, 0.025), quantile(total_cat2, 0.025),
+    quantile(sexual_cat3, 0.025), quantile(remaining_cat3, 0.025), quantile(total_cat3, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_cat2, 0.975), quantile(remaining_cat2, 0.975), quantile(total_cat2, 0.975),
+    quantile(sexual_cat3, 0.975), quantile(remaining_cat3, 0.975), quantile(total_cat3, 0.975)
+  ), 2)
+)
+
+print(summary_pathcoeff)
+
+#Calculate posterior probabilities
+posterior_probs <- data.frame(
+  Category  = c("2malesENO", "3malesENO"),
+  Sexual_Selection    = round(c(mean(sexual_cat2 > 0), mean(sexual_cat3 > 0)), 3),
+  Remaining_Selection = round(c(mean(remaining_cat2 > 0), mean(remaining_cat3 > 0)), 3),
+  Total_Selection     = round(c(mean(total_cat2 > 0), mean(total_cat3 > 0)), 3)
+)
+
+print(posterior_probs)
+
+```
+
+#### 2.3.1 Plot Selection gradient on scaled body mass controlling for M
+```{r}
+
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M *cat, data = ma_sum)
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(ma_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(ma_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-2.51, 2.65, length = 100),
+                      M= mean(ma_sum$M),
+                      cat = levels(ma_sum$category))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M*cat, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+newdat
+head(newdat) # Display the first few rows of 'newdat'
+
+# Assuming `category` is the column in `ma_sum`:
+table(ma_sum$category)
+
+# Or store them:
+n_2males <- sum(ma_sum$category == "2males")
+n_3malesENO <- sum(ma_sum$category == "3malesENO")
+
+
+smb_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = category), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+  scale_color_manual(
+    values = c("3malesENO" = "orange", "2males" = "blue"),
+    labels = c(
+      paste0("without (n = ", n_2males, ")"),
+      paste0("with (n = ", n_3malesENO, ")")
+    ),
+    name = "Extra-nest offspring"
+  ) +
+  xlab("Scaled mass index (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = lwr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = upr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = fit, color = cat), size = 1.5, ,show.legend = FALSE) +
+  labs(title = "Males (n = 92)") +
+  theme_plots() +
+  theme(
+    legend.position = c(0.98, 0.98),  # top right corner
+    legend.justification = c("right", "top"),
+    legend.background = element_rect(fill = "white", color = "black"),
+    legend.key = element_rect(fill = NA)
+  )+
+  guides(color = guide_legend(
+    override.aes = list(alpha = 1)  # Legend points fully opaque
+  ))
+
+
+smb_ma 
+
+print(smb_ma )
+smb_ma<-ggarrange(smb_ma , labels = c("H"))
+
+ggsave("figures/fig3/smb_ma_H.png", plot = smb_ma , 
+       width = 3, height = 4, dpi = 300,
+       bg="transparent")
+```
+
+
+
+
+
+
+

@@ -1,0 +1,3316 @@
+---
+title: "Black Coucals gradients"
+author: "null"
+date: "2025-07-21"
+output:
+  html_document:
+    toc: yes
+    toc_depth: '3'
+    df_print: paged
+  pdf_document:
+    toc: yes
+    toc_depth: 3
+    theme: journal
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+set.seed(123)  # Set a specific seed value, such as 123
+```
+
+# Black coucals Bateman Gradients
+
+This script models the reproductive and mating success of black coucals through generalized mixed effect models. It aims to obtain the Bateman gradient of females (n=120) and males (n=210) based on data collected over 15 breeding seasons. The study focused on black coucals inhabiting the Usangu wetlands of Tanzania.
+
+Within males, two categories were identified: 2males comprised nesting males without extra-nest offspring (144 individuals); 3malesENO consisted of nesting males with extra-nest offspring (35 males) that provided care for offspring with one genetic partner and increased their reproductive success through additional mating or by siring young with their social partner in other males' nests
+
+The script contains four generalized mixed effect models. The first model estimates the Bateman gradient of females and all male categories; the second model estimates the gradient of females and two male categories (nesting males with and without extra-nest offspring), and the third and fourth model obtains the gradients of females and males (separately) with standardized data of reproductive and mating success. Each model also calculates 95% credible intervals for effect sizes and sex and category-specific intercepts and slopes.
+
+We also provide the calculations to obtain the sex and category-specific opportunities for selection and sexual selection as well as path coefficient testing for selection in age. 
+
+
+```{r, warning=FALSE}
+# Set the working directory
+knitr::opts_knit$set(root.dir = "setwd(getwd())")
+
+# Read the CSV file
+dataclean <- read.csv("data/blackcoucal_gradients.csv")
+```
+
+```{r include = FALSE}
+knitr::opts_chunk$set(message = FALSE)
+```
+ 
+```{r,warning=FALSE}
+## Loading the libraries 
+
+library(ggplot2) # Visualizing results: Creates customizable plots using the grammar of graphics.
+library(lme4) # To run the mixed model: Fits linear and generalized linear mixed-effects models.
+library(arm)   # Bayesian analysis: Provides tools for Bayesian modeling and diagnostics.
+library(blmeco)  # Checking for overdispersion in models: Includes tools for ecological and Bayesian model checks.
+library(plyr)  # Calculate means and SD: Simplifies data manipulation and aggregation tasks.
+library(tidyverse) # Data science toolkit: Collection of packages for data manipulation and visualization.
+library(gridExtra) # Arrange multiple plots: Helps arrange ggplot objects in grid layouts.
+library(dplyr)  # Data manipulation: Provides grammar for data operations like filter(), mutate(), etc.
+library(ggtext)   # Enhanced text formatting: Adds advanced text features for ggplot visualizations.
+library(ggpubr)   # Publication-ready plots: Simplifies creation of high-quality visualizations for publications.
+library(cowplot)  # Plot composition: Combines and aligns multiple ggplot objects effectively.
+library(rstanarm)  # Bayesian regression: Tools for Bayesian applied regression modeling.
+library(grid)
+library(gt)
+library(tibble)  # for rownames_to_column
+
+```
+
+```{r}
+#Set a theme for plots 
+# Define a custom theme
+custom_theme <- theme_bw() +
+  theme(text = element_text(family = "Arial"),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 8),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 10),
+        title = element_text(size=10),
+        plot.title = element_text(size = 13, face = "bold"),  # bold title
+        legend.key.size = unit(0.4, "cm") , 
+        axis.title.y = element_markdown())
+
+#For plots traits and reproductive success 
+theme_plots <- function() {
+  theme_bw() +
+    theme(
+      legend.position = "none",
+      legend.text = element_text(size = 10),
+      legend.title = element_text(size = 10),
+      axis.text = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      plot.title = element_text(color = "black", face = "bold")
+    )
+}
+```
+
+### Description of data structure
+```{r, echo=TRUE, error=FALSE}
+# Assigning factors to variables
+dataclean <- dataclean %>%
+   mutate(
+      ring_no_lab= as.factor(ring_no_lab),
+      ring_no = as.factor(ring_no),
+      year = as.factor(year),
+      sex = as.factor(sex),
+      age = as.factor(age),
+      epy = as.factor(epy),
+      category = as.factor(category),
+      totaloff = as.numeric(totaloff),
+      totalmates= as.numeric(totalmates),
+     totalnest_sum = as.numeric(totalnest_sum)
+   )
+
+head(dataclean)
+
+```
+
+
+### Subsetting and visualising the response variables by sex
+````{r}
+ma <- dataclean %>% filter(sex == "male") %>% droplevels(); head(ma) # 
+fe<- dataclean %>% filter(sex =="female") %>% droplevels(); head(fe) # 
+hist(fe$totaloff)
+hist(fe$totalmates) 
+hist(ma$totaloff)
+hist(ma$totalmates)
+
+#display factor levels for category
+levels(dataclean$category)
+
+
+````
+
+
+
+### Calculating the overall number of offspring and sexes in black coucals 
+
+```{r}
+# Total number of offspring 
+totaloff_sum <- sum(dataclean$totaloff)
+print(totaloff_sum)
+
+#Total number of individuals per sex 
+print(table(dataclean$sex)) #There are repeated measures of 3 males
+```
+
+
+# Visualizing data
+
+````{r}
+#3 males with records in two different years
+dataclean %>% filter(ring_no_lab=="*34")
+dataclean %>% filter(ring_no_lab=="*38")
+dataclean %>% filter(ring_no_lab=="CW15_143")
+
+fe<- dataclean %>% filter(sex =="female") %>% droplevels()
+ma <- dataclean %>% filter(sex == "male") %>% droplevels()
+
+levels(dataclean$category)
+levels(ma$category)
+levels(fe$category)
+
+# Count unique number of females and males per category
+counts <- dataclean %>%
+   group_by(category, sex) %>%
+   summarise(count = n_distinct(ring_no_lab))
+
+# View the counts
+print(counts)
+````
+# Table 1:  Calculating the opportunity for selection and sexual selection in males and females 
+
+
+##Opportunity for selection 
+````{r}
+dataclean1 <- dataclean %>%
+  dplyr::group_by(ring_no_lab, sex, category, age) %>%
+  dplyr::summarise(
+    totaloff = mean(totaloff, na.rm = TRUE),
+    totalmates = mean(totalmates, na.rm = TRUE),
+  ) %>%
+  dplyr::ungroup()
+
+
+
+# Fit model
+mod <- lm(totaloff ~ category, data = dataclean1)
+
+# Simulate from the model
+nsim <- 10000
+bsim <- sim(mod, n.sims = nsim)
+
+# Function to calculate I per level
+compute_I <- function(y, categories) {
+  sapply(levels(categories), function(lvl) {
+    y_lvl <- y[categories == lvl]
+    var(y_lvl) / (mean(y_lvl)^2)
+  })
+}
+
+# Function to calculate mean per level
+compute_mean <- function(y, categories) {
+  sapply(levels(categories), function(lvl) {
+    mean(y[categories == lvl])
+  })
+}
+
+# Function to calculate variance per level
+compute_var <- function(y, categories) {
+  sapply(levels(categories), function(lvl) {
+    var(y[categories == lvl])
+  })
+}
+
+# Observed values
+observed <- mod$fitted.values + mod$residuals
+
+# Observed statistics
+I_obs <- compute_I(observed, mod$model$category)
+mean_obs <- compute_mean(observed, mod$model$category)
+var_obs <- compute_var(observed, mod$model$category)
+
+# Simulated I
+X <- model.matrix(mod)
+I_sims <- t(sapply(1:nsim, function(i) {
+  RS <- X %*% bsim@coef[i, ] + rnorm(nrow(X), 0, bsim@sigma[i])
+  compute_I(RS, mod$model$category)
+}))
+
+# 95% credible intervals
+I_ci <- apply(I_sims, 2, quantile, probs = c(0.025, 0.975))
+
+# Count number of observations per category
+n_per_category <- as.numeric(table(mod$model$category))
+
+# Count number of unique ring number  per category
+n_unique <- tapply(dataclean$ring_no_lab, dataclean$category, function(x) length(unique(x)))
+
+# Combine into final table and round
+result <- data.frame(
+  category = levels(mod$model$category),
+  N     = as.numeric(n_unique),
+  mean_RS = round(mean_obs, 2),
+  var_RS = round(var_obs, 2),
+  I_obs = round(I_obs, 2),
+  Crl_lower = round(I_ci[1, ], 2),
+  Crlupper = round(I_ci[2, ], 2)
+)
+
+print(result)
+````
+
+# Table 1: BC Opp selection
+```{r}
+#Visualize and save table 
+tab <- result %>%
+  mutate(category = recode(category,
+                           "1females"   = "Females",
+                           "2males"     = "Males without ENO",
+                           "3malesENO"  = "Males with ENO")) %>%
+  gt() %>%
+  tab_header(
+    title = "Black coucals"
+  ) %>% 
+  cols_label(
+    category = "Category", 
+    )
+
+gtsave(tab, "tables/Table1_BC_OppSel.pdf")
+
+```
+
+```{r}
+
+# Names for clarity
+colnames(I_sims) <- levels(mod$model$category)
+
+# Calculate differences for each simulation
+diff_female_vs_no_ENO <- I_sims[, "2males"] - I_sims[, "1females"]
+diff_female_vs_with_ENO <- I_sims[, "3malesENO"] - I_sims[, "1females"]
+diff_with_ENO_vs_no_ENO <- I_sims[, "2males"] - I_sims[, "3malesENO"]
+
+# Function to summarize differences
+summarize_diff <- function(diff_samples, label) {
+  cat("Comparison:", label, "\n")
+  cat("  Mean difference:", round(mean(diff_samples), 3), "\n")
+  cat("  95% Crl:", round(quantile(diff_samples, probs = c(0.025, 0.975)), 3), "\n")
+  cat("  P(group1 > group2):", round(mean(diff_samples > 0), 3 ), "\n\n")
+}
+
+# Summarize all comparisons
+summarize_diff(diff_female_vs_no_ENO, "Females vs Males without ENO")
+summarize_diff(diff_female_vs_with_ENO, "Females vs Males with ENO")
+summarize_diff(diff_with_ENO_vs_no_ENO, "Males with ENO vs Males without ENO")
+```
+
+## Opportunity for sexual selection
+````{r}
+library(arm)
+
+# Fit model
+mod <- lm(totalmates ~ category, data = dataclean1)
+
+# Simulate from the model
+nsim <- 10000
+bsim <- sim(mod, n.sims = nsim)
+
+# Function to calculate Is per level
+compute_Is <- function(y, categories) {
+  sapply(levels(categories), function(lvl) {
+    y_lvl <- y[categories == lvl]
+    var(y_lvl) / (mean(y_lvl)^2)
+  })
+}
+
+# Functions to calculate mean and variance per level
+compute_mean <- function(y, categories) {
+  sapply(levels(categories), function(lvl) mean(y[categories == lvl]))
+}
+
+compute_var <- function(y, categories) {
+  sapply(levels(categories), function(lvl) var(y[categories == lvl]))
+}
+
+# Observed values
+observed <- mod$fitted.values + mod$residuals
+
+# Observed statistics
+Is_obs <- compute_Is(observed, mod$model$category)
+mean_obs <- compute_mean(observed, mod$model$category)
+var_obs <- compute_var(observed, mod$model$category)
+
+# Simulated Is
+X <- model.matrix(mod)
+Is_sims <- t(sapply(1:nsim, function(i) {
+  MS <- X %*% bsim@coef[i, ] + rnorm(nrow(X), 0, bsim@sigma[i])
+  compute_Is(MS, mod$model$category)
+}))
+
+# 95% credible intervals
+Is_ci <- apply(Is_sims, 2, quantile, probs = c(0.025, 0.975))
+
+# Count number of unique ring number  per category
+n_unique <- tapply(dataclean$ring_no_lab, dataclean$category, function(x) length(unique(x)))
+
+# Combine into final table and round
+result <- data.frame(
+  category = levels(mod$model$category),
+  N     = as.numeric(n_unique),
+  mean_MS = round(mean_obs, 2),
+  var_MS = round(var_obs, 2),
+  Is_obs = round(Is_obs, 2),
+  CI_lower = round(Is_ci[1, ], 2),
+  CI_upper = round(Is_ci[2, ], 2)
+)
+
+print(result)
+
+
+
+````
+
+# Table 1: BC Opp sexual selection
+````{r}
+#Visualize and save table 
+tab <- result %>%
+  mutate(category = recode(category,
+                           "1females"   = "Females",
+                           "2males"     = "Males without ENO",
+                           "3malesENO"  = "Males with ENO")) %>%
+  gt() %>%
+  tab_header(
+    title = "Black coucals"
+  ) %>% 
+  cols_label(
+    category = "Category", 
+    )
+
+gtsave(tab, "tables/Table1_BC_OppSexSel.pdf")
+
+
+````
+
+```{r}
+
+# Names for clarity
+colnames(Is_sims) <- levels(mod$model$category)
+
+# Calculate differences for each simulation
+diff_female_vs_no_ENO <- Is_sims[, "2males"] - Is_sims[, "1females"]
+diff_female_vs_with_ENO <- Is_sims[, "3malesENO"] - Is_sims[, "1females"]
+diff_with_ENO_vs_no_ENO <- Is_sims[, "3malesENO"] - Is_sims[, "2males"]
+
+# Function to summarize differences
+summarize_diff <- function(diff_samples, label) {
+  cat("Comparison:", label, "\n")
+  cat("  Mean difference:", round(mean(diff_samples), 3), "\n")
+  cat("  95% Crl:", round(quantile(diff_samples, probs = c(0.025, 0.975)), 2), "\n")
+  cat("  P(group1 > group2):", round(mean(diff_samples > 0), 3), "\n\n")
+}
+
+# Summarize all comparisons
+summarize_diff(diff_female_vs_no_ENO, "Females vs Males without ENO")
+summarize_diff(diff_female_vs_with_ENO, "Females vs Males with ENO")
+summarize_diff(diff_with_ENO_vs_no_ENO, "Males with ENO vs Males without ENO")
+```
+# Table1: Intervals for intercepts and slopes with linear model (for table and comparison)
+
+````{r}
+# Intercepts and slopes by category Absolute values (for table)------
+mod <- lmer(totaloff ~ totalmates * category +
+               (1|year),
+            data = dataclean, 
+            control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(mod)
+````
+
+````{r}
+set.seed(123) 
+nsim <- 10000
+bsim <- sim(mod,n.sim=nsim)
+str(bsim)
+round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+colnames(bsim@fixef)
+````
+```{r}
+#Intercept females 
+Int_Fe<- bsim@fixef[,"(Intercept)"]
+round(mean(Int_Fe),2) # -0.17
+round(quantile(Int_Fe, prob=c(0.025, 0.975)),2) #-1.01  0.65 
+round(sum(bsim@fixef[,1]> 0) / nsim, 3) #0.339
+```
+```{r}
+#Slope females 
+Slop_Fe<- bsim@fixef[,"totalmates"]
+round(mean(Slop_Fe),2) # 2.99
+round(quantile(Slop_Fe, prob=c(0.025, 0.975)),2) #2.63  3.36
+round(sum(bsim@fixef[,2]> 0) /nsim , 3) #0.999
+```
+```{r}
+#Intercept males without ENO
+Int_ma_without<- bsim@fixef[,"(Intercept)"]+ bsim@fixef[, "category2males"]
+round(mean(Int_ma_without),2) # 1.18
+round(quantile(Int_ma_without, prob=c(0.025, 0.975)),2) #-1.38  3.77 
+round(sum(bsim@fixef[,1] + bsim@fixef[,3] > 0) /nsim , 3) #0.816
+```
+```{r}
+#Slope males without ENO
+Slop_ma_without<- bsim@fixef[,"totalmates"] + bsim@fixef[,"totalmates:category2males"]
+round(mean(Slop_ma_without),2) #1.67
+round(quantile(Slop_ma_without, prob=c(0.025, 0.975)),2) #-0.94  4.15
+round(sum(bsim@fixef[,"totalmates"]+ bsim@fixef[,"totalmates:category2males"]> 0) /nsim, 3) #0.0.907
+```
+```{r}
+#Intercept males with ENO
+Int_ma_with<- bsim@fixef[,"(Intercept)"]+ bsim@fixef[,"category3malesENO"]
+round(mean(Int_ma_with),2) # #4.50
+round(quantile(Int_ma_with, prob=c(0.025, 0.975)),2) # 2.27 , 6.71
+```
+```{r}
+#Slope males with ENO
+Slop_ma_with<- bsim@fixef[,"totalmates"] + bsim@fixef[,"totalmates:category3malesENO"]
+round(mean(Slop_ma_with),2) #0.5
+round(quantile(Slop_ma_with, prob=c(0.025, 0.975)),2) #-1.41, 2.07
+round(sum(bsim@fixef[,"totalmates"]+ bsim@fixef[,"totalmates:category3malesENO"] > 0) /nsim, 3) #0.726
+```
+
+## Differences between slopes
+````{r}
+# estimate differences between females and males of both male categories
+# Bateman gradient for females (reference)
+coefs <- bsim@fixef
+colnames(coefs)  # Check names to match correctly
+
+female_gradient <- coefs[, "totalmates"]
+
+# Gradient for males without EPO
+male_no_ENO <- coefs[, "totalmates"] + coefs[, "totalmates:category2males"]
+
+# Gradient for males with ENO
+male_with_ENO <- coefs[, "totalmates"] + coefs[, "totalmates:category3malesENO"]
+
+
+# Females vs males without ENO
+diff_female_vs_no_ENO <- female_gradient - male_no_ENO
+
+# Females vs males with ENO
+diff_female_vs_with_ENO <- female_gradient - male_with_ENO
+
+# Males with ENO vs males without ENO
+diff_with_ENO_vs_no_ENO <- male_with_ENO - male_no_ENO
+
+summarize_diff <- function(diff_samples, label) {
+  cat("Comparison:", label, "\n")
+  cat("  Mean difference:", mean(diff_samples), "\n")
+  cat("  95% CI:", quantile(diff_samples, probs = c(0.025, 0.975)), "\n")
+  cat("  P(group1 > group2):", mean(diff_samples > 0), "\n\n")
+}
+
+summarize_diff(diff_female_vs_no_ENO, "Females vs Males without ENO")
+summarize_diff(diff_female_vs_with_ENO, "Females vs Males with ENO")
+summarize_diff(diff_with_ENO_vs_no_ENO, "Males with ENO vs Males without ENO")
+````
+
+
+## Plot differences in slopes 
+```{r}
+
+##############################################
+# Prepare slope differences for plotting
+##############################################
+
+# Females vs Males without ENO
+slope_females <- bsim@fixef[, "totalmates"]
+slope_2males <- bsim@fixef[, "totalmates"] + bsim@fixef[, "totalmates:category2males"]
+diff_f_vs_2m <- slope_females - slope_2males
+ci_f_vs_2m <- round(quantile(diff_f_vs_2m, c(0.025, 0.5, 0.975)), 2)
+prob_f_gt_2m <- round(mean(diff_f_vs_2m > 0), 3)
+
+# Females vs Males with ENO
+slope_3males <- bsim@fixef[, "totalmates"] + bsim@fixef[, "totalmates:category3malesENO"]
+diff_f_vs_3m <- slope_females - slope_3males
+ci_f_vs_3m <- round(quantile(diff_f_vs_3m, c(0.025, 0.5, 0.975)), 2)
+prob_f_gt_3m <- round(mean(diff_f_vs_3m > 0), 3)
+
+# Males without ENO vs Males with ENO
+diff_2m_vs_3m <- slope_2males - slope_3males
+ci_2m_vs_3m <- round(quantile(diff_2m_vs_3m, c(0.025, 0.5, 0.975)), 2)
+prob_2m_gt_3m <- round(mean(diff_2m_vs_3m > 0), 3)
+
+
+##############################################
+# Combine into a single data frame for plotting
+##############################################
+
+df_plot <- data.frame(
+  diff = c(diff_f_vs_2m, diff_f_vs_3m, diff_2m_vs_3m),
+  comparison = rep(
+    c("Females vs Males without ENO",
+      "Females vs Males with ENO",
+      "Males without vs Males with ENO"),
+    each = length(diff_f_vs_2m)
+  )
+)
+
+##############################################
+# Plot posterior distributions of differences
+##############################################
+
+ggplot(df_plot, aes(x = diff, fill = comparison)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = ci_f_vs_2m, color = "#0072B2", linetype = "dashed") +
+  geom_vline(xintercept = ci_f_vs_3m, color = "#E69F00", linetype = "dashed") +
+  geom_vline(xintercept = ci_2m_vs_3m, color = "#009E73", linetype = "dashed") +
+  labs(
+    title = "Posterior distributions of slope differences",
+    x = "Slope difference",
+    y = "Density",
+    fill = "Comparison"
+  ) +
+  custom_theme +
+  scale_fill_manual(values = c("#0072B2", "#E69F00", "#009E73"))
+
+
+```
+
+
+
+#Table1: Standardized model for females and males combined
+
+
+## Scaling reproductive and mating success and filtering data for analyses
+```{r}
+#Scaling reproductive and mating success across sex categories
+dataclean$mean_st_off_ <- dataclean$totaloff / mean(dataclean$totaloff) 
+dataclean$totalmates.z <-scale(dataclean$totalmates)
+hist(dataclean$totalmates.z)
+
+head(dataclean) # Display the dataset with the new variable
+
+# Calculate mean and standard deviation
+mean_val <- mean(dataclean$totalmates)
+std_dev <- sd(dataclean$totalmates)
+
+# Manually center and scale the variable
+dataclean$totalmates.z <- (dataclean$totalmates - mean_val) / std_dev
+
+head(dataclean) # Display the dataset with the new variable
+                           
+ #  Display the original totalmates and the scaled totalmates
+result <- dataclean[, c("totalmates", "totalmates.z")]
+
+# View the result
+print(result)
+
+```
+
+
+
+````{r, warning=FALSE}
+str(dataclean)
+
+
+mod <- lmer(mean_st_off_ ~ totalmates.z *category +
+               (1|year),
+            data = dataclean, 
+            control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+mod
+MuMIn::r.squaredGLMM(mod)
+
+
+
+````
+
+
+## Assesing model assumptions 
+```{r, warning=FALSE}
+par(mfrow=c(3,2))
+scatter.smooth(fitted(mod),resid(mod));abline(h=0, lty=2)
+title("Tukey-Ascombe plot") #residual vs fitted, indicates strong shrinkage
+
+qqnorm(resid(mod), main = "normal qq-plot, residuals") #"qq of residuals"
+qqline(resid(mod))
+scatter.smooth(fitted(mod),sqrt(abs(resid(mod)))) # res.var vs fitted 
+qqnorm(ranef(mod)$year[, 1], main="normal qq-plot, random effect:year")
+qqline(ranef(mod)$year[,1]) # qq of random effect
+
+#Checking if model has over dispersion
+# calculate the residual deviance and degrees of freedom
+dispersion_glmer(mod) # if under 1 no over dispersion
+
+#look at the residuals
+par(mfrow=c(2,2)) 
+scatter.smooth(fitted(mod),resid(mod)) #look OK
+scatter.smooth(dataclean$year, resid(mod)) #look OK 
+```
+
+##Drawing conclusion
+```{r, warning=FALSE}
+set.seed(123) 
+nsim <- 10000
+bsim <- sim(mod,n.sim=nsim)
+str(bsim)
+round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+round(sum(bsim@fixef[,1] > 0) / nsim, 3) #
+round(sum(bsim@fixef[,2] > 0) / nsim, 3) #
+round(sum(bsim@fixef[,3] > 0) / nsim, 3) #
+round(sum(bsim@fixef[,4] > 0) / nsim, 3) #
+round(sum(bsim@fixef[,5] > 0) / nsim, 3) #
+round(sum(bsim@fixef[,6] > 0) / nsim, 3) #
+```
+```{r}
+#Intercept females 
+Int_Fe<- bsim@fixef[,"(Intercept)"]
+round(mean(Int_Fe),2) # 0.94
+round(quantile(Int_Fe, prob=c(0.025, 0.975)),2) #0.82, 1.06
+round(sum(bsim@fixef[,1]> 0) / nsim, 3) #0.999
+```
+```{r}
+#Slope females 
+Slop_Fe<- bsim@fixef[,"totalmates.z"]
+round(mean(Slop_Fe),2) #0.57
+round(quantile(Slop_Fe, prob=c(0.025, 0.975)),2) #0.51, 0.64
+round(sum(bsim@fixef[,2]> 0) /nsim , 3) #0.999
+```
+```{r}
+#Intercept males without ENO
+Int_ma_without<- bsim@fixef[,"(Intercept)"]+ bsim@fixef[, "category2males"]
+round(mean(Int_ma_without),2) # 0.83
+round(quantile(Int_ma_without, prob=c(0.025, 0.975)),2) #0.58, 1.09
+round(sum(bsim@fixef[,1] + bsim@fixef[,3] > 0) /nsim , 3) #0.999
+```
+```{r}
+#Slope males without ENO
+Slop_ma_without<- bsim@fixef[,"totalmates.z"] + bsim@fixef[,"totalmates.z:category2males"]
+round(mean(Slop_ma_without),2) #0.32
+round(quantile(Slop_ma_without, prob=c(0.025, 0.975)),2) #-0.17  0.82
+round(sum(bsim@fixef[,"totalmates.z"]+ bsim@fixef[,"totalmates.z:category2males"]> 0) /nsim, 3) #0.0.907
+```
+```{r}
+#Intercept males with ENO
+Int_ma_with<- bsim@fixef[,"(Intercept)"]+ bsim@fixef[,"category3malesENO"]
+round(mean(Int_ma_with),2) # #1.21
+round(quantile(Int_ma_with, prob=c(0.025, 0.975)),2) #1.03, 1.39
+```
+```{r}
+#Slope males with ENO
+Slop_ma_with<- bsim@fixef[,"totalmates.z"] + bsim@fixef[,"totalmates.z:category3malesENO"]
+round(mean(Slop_ma_with),2) #0.09
+round(quantile(Slop_ma_with, prob=c(0.025, 0.975)),2) #-0.21, 0.40
+round(sum(bsim@fixef[,"totalmates.z"]+ bsim@fixef[,"totalmates.z:category3malesENO"] > 0) /nsim, 3) #0.726
+```
+
+
+
+## Differences between slopes
+```{r}
+
+##############################################
+### SLOPES
+##############################################
+
+## Females vs. Males WITHOUT ENO
+# 95% credible interval of difference
+round(quantile(
+  bsim@fixef[, "totalmates.z"] -
+    (bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category2males"]),
+  c(0.025, 0.5, 0.975)
+),3)
+# Interval includes 0 → no clear evidence slopes differ
+
+# Posterior probability that slope for females > males without ENO
+round(sum(
+  (bsim@fixef[, "totalmates.z"] -
+   (bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category2males"])) > 0
+) / nsim,3)
+
+# Alternative probability formulation (males > females)
+round(sum(
+  ((bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category2males"]) -
+   bsim@fixef[, "totalmates.z"]) > 0
+) / nsim,3)
+
+
+```
+
+
+```{r}
+## Females vs. Males WITH ENO
+# 95% credible interval of difference
+round(quantile(
+  bsim@fixef[, "totalmates.z"] -
+    (bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category3malesENO"]),
+  c(0.025, 0.5, 0.975)
+),2)
+# Interval includes 0 → no clear evidence slopes differ
+
+# Posterior probability that slope for females > males with ENO
+round(sum(
+  (bsim@fixef[, "totalmates.z"] -
+   (bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category3malesENO"])) > 0
+) / nsim,3)
+
+```
+
+```{r}
+## Males WITH vs. WITHOUT ENO
+# 95% credible interval of difference
+round(quantile(
+  (bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category2males"]) -
+    (bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category3malesENO"]),
+  c(0.025, 0.5, 0.975)
+),2)
+
+# Posterior probability that slope for males without > with ENO
+round(sum(
+  ((bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category3malesENO"]) -
+   (bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category2males"])) > 0
+) / nsim, 3)
+
+
+```
+
+
+
+
+```{r}
+
+# Estimate differences between females and males of both male categories
+
+# Bateman gradient for females (reference)
+coefs <- bsim@fixef
+colnames(coefs)  # Check names to match correctly
+
+female_gradient <- coefs[, "totalmates.z"]
+
+# Gradient for males without EPO
+male_no_ENO <- coefs[, "totalmates.z"] + coefs[, "totalmates.z:category2males"]
+
+# Gradient for males with ENO
+male_with_ENO <- coefs[, "totalmates.z"] + coefs[, "totalmates.z:category3malesENO"]
+
+
+# Females vs males without ENO
+diff_female_vs_no_ENO <- female_gradient - male_no_ENO
+
+# Females vs males with ENO
+diff_female_vs_with_ENO <- female_gradient - male_with_ENO
+
+# Males with ENO vs males without ENO
+diff_with_ENO_vs_no_ENO <- male_with_ENO - male_no_ENO
+
+summarize_diff <- function(diff_samples, label) {
+  cat("Comparison:", label, "\n")
+  cat("  Mean difference:", mean(diff_samples), "\n")
+  cat("  95% CI:", quantile(diff_samples, probs = c(0.025, 0.975)), "\n")
+  cat("  P(group1 > group2):", mean(diff_samples > 0), "\n\n")
+}
+
+summarize_diff(diff_female_vs_no_ENO, "Females vs Males without ENO")
+summarize_diff(diff_female_vs_with_ENO, "Females vs Males with ENO")
+summarize_diff(diff_with_ENO_vs_no_ENO, "Males with ENO vs Males without ENO")
+
+```
+
+
+#Figure 1. Modeling the Bateman gradient with absolute values
+
+
+## Model 
+Notes on mixed effect models: # marginal and conditional R² calculation#R-squared is a measure of how well a model fits the data.
+
+Marginal R-squared: It represents the proportion of variance explained by the fixed effects in the model, considering only the population-level components. It quantifies how well the fixed effects explain the variability in the response variable across all levels of the random effects.
+Conditional R-squared: It represents the proportion of variance explained by both the fixed and random effects in the model. It considers the population-level and individual-level components and quantifies how well the fixed and random effects together explain the variability in the response variable.
+Calculate variance explained
+Log normal: The log normal transformation involves taking the natural logarithm of the response variable in the GLMM. This transformation is commonly used when the data exhibits skewed or non-normal distribution. 
+```{r, warning=FALSE}
+mod <- glmer(totaloff ~ 
+                totalmates * category +
+                   (1|year) , family="poisson", 
+             data = dataclean,
+             control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+
+
+MuMIn::r.squaredGLMM(mod)
+summary(mod)
+
+round(fixef(mod),3) 
+anova(mod)
+
+# Obtain the random effects
+random_effects <- ranef(mod)
+
+# Obtain the residuals of the random effects
+random_residuals <- residuals(random_effects)
+
+# Print the random residuals
+print(random_residuals)
+```
+
+
+
+## Assessing model assumptions 
+```{r, warning=FALSE}
+# Set up a 3x2 grid for multiple plots
+par(mfrow=c(3,2))
+
+# Create a Tukey-Ascombe plot showing residual vs. fitted values with a horizontal line at y=0
+scatter.smooth(fitted(mod), resid(mod))
+abline(h=0, lty=2)
+title("Tukey-Ascombe plot") # Title for the plot, indicating strong shrinkage
+
+# Create a normal quantile-quantile (QQ) plot of residuals for assessing normality
+qqnorm(resid(mod), main = "normal qq-plot, residuals") # "QQ of residuals"
+qqline(resid(mod))  # Add a reference line to the QQ-plot
+
+# Create a scatter plot of square root of absolute residuals vs. fitted values
+scatter.smooth(fitted(mod), sqrt(abs(resid(mod))))
+               
+ # Create a normal QQ-plot of random effect 'year'
+ qqnorm(ranef(mod)$year[, 1], main = "normal qq-plot, random effect: year")
+ qqline(ranef(mod)$year[, 1])  # QQ-plot for random effect
+               
+               
+# Checking if the model has over dispersion
+# Calculate the residual deviance and degrees of freedom to assess over dispersion
+dispersion_glmer(mod)  # If the value is under 1, there is no over dispersion
+               
+#Look at the residuals
+par(mfrow=c(2,2)) 
+scatter.smooth(fitted(mod),resid(mod)) #look OK
+
+
+# Before drawing conclusions, the linear predictors need to be transformed.
+# Since a log-link function was used, we need to use the "exp" function for transformation.
+# Refer to Korner-Nievergel et al. (2015). Bayesian Data Analysis in Ecology Using Linear Models with R, BUGS, and Stan (1st edition). Academic Press, page 149 for details on this transformation.
+
+```
+
+## Table S1a (Supplementary):Drawing conclusions 
+```{r}
+set.seed(123)
+# Set the number of simulations
+nsim <- 10000
+
+# Simulate the model 'mod' with 'nsim' iterations and store the results in 'bsim'
+bsim <- sim(mod, n.sim = nsim)
+
+# Examine the structure of the 'bsim' object
+str(bsim)
+
+# Calculate quantiles for the fixed effects (coefficients) of the model at probabilities 0.025, 0.5, and 0.975, rounded to two decimal places
+round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+
+# Calculate the proportion the for each fixed effect (column 1) that is greater than 0
+round(sum(fixef(bsim)[,1]>0)/nsim,3) 
+round(sum(fixef(bsim)[,2]>0)/nsim,3) 
+round(sum(fixef(bsim)[,3]>0)/nsim,3) 
+round(sum(fixef(bsim)[,4]>0)/nsim,3)
+round(sum(fixef(bsim)[,5]>0)/nsim,3) 
+round(sum(fixef(bsim)[,6]>0)/nsim,3)
+
+# Calculate quantiles for the random
+
+round(quantile(as.vector(bsim@ranef$year), prob = c(0.025, 0.5, 0.975)),2)
+# Proportion of values greater than 0 for random effects
+sum(as.vector(bsim@ranef$year) > 0) / length(as.vector(bsim@ranef$year))
+```
+
+# Table S1a
+```{r}
+
+# --- 1. Quantiles for fixed effects ---
+qtab <- round(apply(bsim@fixef, 2, quantile, prob = c(0.025, 0.5, 0.975)), 2)
+
+# --- 2. Posterior probability > 0 ---
+prop_gt0 <- round(apply(fixef(bsim), 2, function(x) mean(x > 0)), 3)
+
+# --- 3. Combine into a data frame ---
+result_table <- as.data.frame(t(qtab)) %>%
+  mutate(`P(β > 0)` = prop_gt0) %>%
+  rownames_to_column(var = "Effect") %>%
+  mutate(`β (95% Crl)` = paste0(`50%`, " (", "2.5%", ", ", "97.5%`, ")") %>%
+  select(Effect, "β (95% Crl)", "P(β > 0)")
+
+# --- 4. Rename fixed effects ---
+result_table$Effect <- recode(result_table$Effect,
+  "(Intercept)" = "Intercept: females",
+  "totalmates" = "Mating success: females",
+  "category2males" = "Males without ENO",
+  "category3malesENO" = "Males with ENO",
+  "totalmates:category2males" = "Mating success: males without ENO",
+  "totalmates:category3malesENO" = "Mating success: males with ENO"
+)
+
+# --- 5. Add random effect: year ---
+year_quant <- round(quantile(as.vector(bsim@ranef$year), prob = c(0.025, 0.5, 0.975)), 2)
+year_prop <- round(sum(as.vector(bsim@ranef$year) > 0) / length(as.vector(bsim@ranef$year)), 3)
+
+year_row <- data.frame(
+  Effect = "Random effect: year (15 groups",
+  `β (95% Crl)` = paste0(year_quant["50%"], " (", year_quant["2.5%"], ", ", year_quant["97.5%"], ")"),
+  `P(β > 0)` = year_prop,
+  check.names = FALSE
+)
+
+result_table <- bind_rows(result_table, year_row)
+
+# --- 6. R² values for lognormal model ---
+r2_log <- MuMIn::r.squaredGLMM(mod)["lognormal", ]
+r2_text <- paste0("R²m = ", round(r2_log["R2m"], 3), ", R²c = ", round(r2_log["R2c"], 3))
+
+# --- 6a. Extract number of observations and the number of groups of random effect ---
+n_obs <- nobs(mod)
+n_groupsranef<- ngrps(mod)["year"]
+
+# --- 7. Render gt table with bold random effect row ---
+tab <- result_table %>%
+  gt() %>%
+  tab_header(
+    title = "a) Absolute values: black coucals",
+    subtitle = paste0("Reproductive success\nN = ", n_obs, " obs. of 299 ind.\n", r2_text)
+  ) %>%
+  cols_label(
+    `β (95% Crl)` = "β (95% Crl)",
+    `P(β > 0)` = "P(β) > 0"
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold"),
+      cell_borders(sides = "top", color = "black", weight = px(2))
+    ),
+    locations = cells_body(
+      rows = Effect == "Random effect: year")
+  ) %>% 
+  # Align all columns to the left
+  cols_align(
+    align = "left",
+    columns = everything()
+  ) %>% 
+  # Align column labels and table to the left
+  tab_options(
+    table.align = "left"
+    
+  )
+
+# --- 8. Show table ---
+tab
+
+#save the table:
+gtsave(tab, "supl/TableS1a_BC.pdf")
+
+```
+## Differences between slopes
+````{r}
+# estimate differences between females and males of both male categories
+# Bateman gradient for females (reference)
+coefs <- bsim@fixef
+colnames(coefs)  # Check names to match correctly
+
+female_gradient <- coefs[, "totalmates"]
+
+# Gradient for males without EPO
+male_no_ENO <- coefs[, "totalmates"] + coefs[, "totalmates:category2males"]
+
+# Gradient for males with ENO
+male_with_ENO <- coefs[, "totalmates"] + coefs[, "totalmates:category3malesENO"]
+
+
+# Females vs males without ENO
+diff_female_vs_no_ENO <- female_gradient - male_no_ENO
+
+# Females vs males with ENO
+diff_female_vs_with_ENO <- female_gradient - male_with_ENO
+
+# Males with ENO vs males without ENO
+diff_with_ENO_vs_no_ENO <- male_with_ENO - male_no_ENO
+
+summarize_diff <- function(diff_samples, label) {
+  cat("Comparison:", label, "\n")
+  cat("  Mean difference:", round(mean(diff_samples), 3), "\n")
+  cat("  95% CI:", round(quantile(diff_samples, probs = c(0.025, 0.975)), 3), "\n")
+  cat(" P(group1 > group2):", mean(diff_samples > 0), "\n\n")
+}
+
+
+summarize_diff(diff_female_vs_no_ENO, "Females vs Males without ENO")
+summarize_diff(diff_female_vs_with_ENO, "Females vs Males with ENO")
+summarize_diff(diff_with_ENO_vs_no_ENO, "Males with ENO vs Males without ENO")
+````
+
+
+## Fitting the model 
+````{r}
+# Calculate the range of values for the 'totalmates' variable in 'dataclean'
+range_totalmates <- range(dataclean$totalmates, na.rm = TRUE)
+
+# Display the range of 'totalmates'
+range_totalmates
+
+# Create a new data frame 'newdat' for plotting, with 'totalmates' ranging from 0 to 5
+newdat <- expand.grid(totalmates = seq(0, 5, length = 100), category = levels(dataclean$category))
+
+# Display the table of 'category' levels
+table(newdat$category)
+
+# Examine the structure of the 'newdat' data frame
+str(newdat)
+
+# Create a design matrix 'Xmat' based on interactions between 'totalmates' and 'category'
+Xmat <- model.matrix(~ totalmates * category, data = newdat)
+
+# Initialize an empty matrix 'fitmat' for storing model fit results
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+
+# Loop through simulations and populate 'fitmat' with fitted values
+for (i in 1:nsim) fitmat[, i] <- exp(Xmat %*% bsim@fixef[i,])
+
+# Calculate lower and upper quantiles for the fitted values and store them in 'newdat'
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values based on the original model and store them in 'newdat'
+newdat$fit <- exp(Xmat %*% fixef(mod))
+
+# Display the 'newdat' data frame
+head(newdat)
+
+````
+
+ 
+## Figure 1a: Create the scatterplot for females
+```{r, warning=FALSE}
+
+# Create the scatter plot
+plot <- ggplot(fe, aes(x = jitter(totalmates, 0.15), y = jitter(totaloff, 0.5))) +
+      geom_point(shape = 17,alpha = 0.2, size=3,color = "violetred") +
+      labs(x = "Mating success", y = "Reproductive success") +
+      xlim(0, 5) +
+      ylim(0,31)+
+      scale_x_continuous(breaks = c(1, 2,3,4,5,6)) +
+      labs(title = "Females (n = 120)")+
+custom_theme
+
+index <- newdat$category == "1females"
+#Plot without ages
+plot <- plot  +
+   geom_line(data = newdat[index & newdat$totalmates <= 5 & newdat$totalmates >= 1, ], aes(x = totalmates, y = fit), color = "violetred", size = 1.5) +
+   geom_line(data = newdat[index & newdat$totalmates <= 5 & newdat$totalmates >= 1, ], aes(x = totalmates, y = lwr), linetype = "solid", color = "violetred") +
+   geom_line(data = newdat[index & newdat$totalmates <= 5 & newdat$totalmates >= 1, ], aes(x = totalmates, y = upr), linetype = "solid", color = "violetred") 
+
+
+# Add dashed reference lines
+females_plot1 <- plot 
+
+
+
+# Print the plot
+print(females_plot1)
+
+
+
+```
+
+## Figure 1a: Create the scatterplot for males
+
+```{r}
+
+#Males
+plot <- ggplot(ma, aes(x = jitter(totalmates, 0.15), y = jitter(totaloff, 0.5), color = category)) +
+   geom_point(shape = 16, alpha = 0.2, size = 3)+
+   labs(x = "Mating success", y = "Reproductive success") +
+   ylim(0, 16)+
+   scale_y_continuous(breaks = seq(2, 16, by = 2)) +
+   ylim(0, 31)+
+   xlim(1, 2) +
+   scale_x_continuous(breaks = c(1, 2)) +  # Set x-axis breaks to show only values 1 and 2
+   theme(axis.text = element_text(size = 8), axis.title = element_text(size = 8), family = "Arial") +
+   labs(title = "Males (n = 179) ")+
+   labs(color = "Extra nest offspring") + 
+   scale_color_manual(values = c( "blue", "orange"),
+                      labels = c("without (n = 144)", "with (n = 35)"),
+                      guide = guide_legend(override.aes = list(shape = 16, size = 5, alpha=1)))+# Change the labels to desired names
+  custom_theme + 
+   theme(
+                     legend.position = c(.99, .99),
+                     legend.justification = c("right", "top"),
+                     legend.box.just = "right",
+         legend.margin = margin(t = 0, b = 0, l = 0, r = 0)) 
+
+# Display the plot
+plot
+
+# Add lines to the scatter plot
+index <- newdat$category == "3malesENO"
+plot <- plot +
+      geom_line(data = newdat[index & newdat$totalmates <= 2 & newdat$totalmates >= 1,], aes(x = totalmates, y = fit), color = "orange", size = 1.5) +
+      geom_line(data = newdat[index & newdat$totalmates <= 2 & newdat$totalmates >= 1, ], aes(x = totalmates, y = lwr), linetype = "solid", color = "orange") +
+      geom_line(data = newdat[index & newdat$totalmates <= 2 & newdat$totalmates >= 1,], aes(x = totalmates, y = upr), linetype = "solid", color = "orange")
+
+index <- newdat$category == "2males"
+plot <- plot +
+      geom_line(data = newdat[index & newdat$totalmates <= 2 &newdat$totalmates >= 1, ], aes(x = totalmates, y = fit), color = "blue", size = 1.5) +
+      geom_line(data = newdat[index & newdat$totalmates <= 2 &newdat$totalmates >= 1,], aes(x = totalmates, y = lwr), linetype = "solid", color = "blue") +
+      geom_line(data = newdat[index & newdat$totalmates <= 2 & newdat$totalmates >= 1,], aes(x = totalmates, y = upr), linetype = "solid", color = "blue")
+
+# Add dashed reference lines
+males_plot1 <- plot +
+  guides(
+    colour = guide_legend(
+      override.aes = list(size = 2.5, alpha = 0.7) # smaller, transparent symbols
+    )
+  )
+
+# Print the plot
+print(males_plot1)
+```
+## Combine both scatterplots for males and females 
+
+````{r, warning=FALSE}
+# Combine the plots
+
+
+Absolute_gradients <- grid.arrange(
+  females_plot1,
+  nullGrob(),         # spacer
+  males_plot1,
+  nrow = 1,
+  widths = c(5, 0.5, 2)   # adjust middle value to control spacing
+)
+
+
+# Display the combined plot
+print(Absolute_gradients)
+````
+
+```{r}
+## Calculate the credible intervals for slopes of each category (for mixed and linear models) in males and females and visualise it 
+
+set.seed(123)
+nsim <- 10000
+bsim <- sim(mod,n.sim=nsim)
+str(bsim)
+round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+```
+```{r}
+#Intercept females 
+Int_Fe<- bsim@fixef[,"(Intercept)"]
+round(sum(bsim@fixef[,1]> 0) / nsim, 3) #0.999
+round(mean(Int_Fe),2) # 0.75
+round(quantile(Int_Fe, prob=c(0.025, 0.975)),2) #0.57, 0.94
+```
+```{r}
+#Slope females 
+Slop_Fe<- bsim@fixef[,"totalmates"]
+round(sum(bsim@fixef[,2] > 0) / nsim, 3) #0.99
+round(mean(Slop_Fe),2) #0.42
+round(quantile(Slop_Fe, prob=c(0.025, 0.975)),2) #0.36, 0.49 
+```
+```{r}
+#Intercept males without ENO
+Int_ma_without<- bsim@fixef[,"(Intercept)"]+ bsim@fixef[,"category2males"]
+round(sum(bsim@fixef[,1] + bsim@fixef[,3] > 0) / nsim, 3) #0.981
+round(mean(Int_ma_without),2) # 0.61
+round(quantile(Int_ma_without, prob=c(0.025, 0.975)),2) #0.04  1.18
+```
+```{r}
+#Slope males without ENO
+Slop_ma_without<- bsim@fixef[,"totalmates"] + bsim@fixef[,"totalmates:category2males"]
+round(sum(bsim@fixef[,2] + bsim@fixef[,5] > 0) / nsim, 3) 
+round(mean(Slop_ma_without),2) #0.45
+round(quantile(Slop_ma_without, prob=c(0.025, 0.975)),2) #-0.09 0.99
+```
+```{r}
+#Intercept males with ENO
+Int_ma_with<- bsim@fixef[,"(Intercept)"]+ bsim@fixef[,"category3malesENO"]
+round(sum(bsim@fixef[,"(Intercept)"] + bsim@fixef[,"category3malesENO"] > 0) / nsim, 3) #0.999
+round(mean(Int_ma_with),2) # #1.49
+round(quantile(Int_ma_with, prob=c(0.025, 0.975)),2) # 1.04, 1.93
+```
+```{r}
+#Slope males with ENO
+Slop_ma_with<- bsim@fixef[,"totalmates"] + bsim@fixef[,"totalmates:category3malesENO"]
+round(sum(bsim@fixef[,2] + bsim@fixef[,6] > 0) / nsim, 3) #0.736
+round(mean(Slop_ma_with),2) #0.10
+round(quantile(Slop_ma_with, prob=c(0.025, 0.975)),2) #-0.22, 0.41
+```
+## Figure 1c: Estimates intercepts and slopes absolute bateman gradient
+
+```{r}
+
+#extracting the posterior draws of the slopes 
+slope_females <- bsim@fixef[, "totalmates"] 
+slope_2males <- bsim@fixef[, "totalmates"] + bsim@fixef[, "totalmates:category2males"] 
+slope_3malesENO <- bsim@fixef[, "totalmates"] + bsim@fixef[, "totalmates:category3malesENO"]
+
+# posterior summaries
+summarize_slope <- function(slope_draws) {
+  mean_val <- mean(slope_draws)
+  ci <- quantile(slope_draws, probs = c(0.025, 0.975))
+  p_gt0 <- mean(slope_draws > 0)
+  c(mean = mean_val, lwr = ci[1], upr = ci[2], p_gt0 = p_gt0)
+}
+
+summary_females <- summarize_slope(slope_females)
+summary_males2  <- summarize_slope(slope_2males)
+summary_males3ENO  <- summarize_slope(slope_3males)
+
+summary_females
+summary_males2
+summary_males3ENO
+
+# summaries for each group (mean, lwr, upr)
+summaries <- data.frame(
+  group = c("Females", "Males without ENO", "Males with ENO"),
+  rbind(summary_females, summary_males2, summary_males3ENO),
+  row.names = NULL
+)
+
+# compute densities for each slope
+dens_list <- list(
+  Females = density(slope_females),
+  `Males without ENO` = density(slope_2males),
+  `Males with ENO` = density(slope_3malesENO)
+)
+
+# build density dataframe and add summaries
+dens_df <- do.call(rbind, lapply(names(dens_list), function(gr) {
+  d <- dens_list[[gr]]
+  s <- summaries[summaries$group == gr, ]
+  data.frame(x = d$x,
+             y = d$y,
+             group = gr,
+             mean = s$mean,
+             lwr = s$lwr,
+             upr = s$upr)
+}))
+
+# compute density mode (x where density is maximized, and its y height)
+modes <- dens_df %>%
+  group_by(group) %>%
+  slice_max(y, n = 1, with_ties = FALSE) %>%
+  select(group, mode_x = x, mode_y = y)
+```
+```{r}
+# plot
+estimates_InterandSlopes <- ggplot(dens_df, aes(x = x, y = y, color = group)) +
+  # ribbon between lwr and upr
+  geom_ribbon(aes(ymin = 0, ymax = ifelse(x >= lwr & x <= upr, y, NA),
+                  fill = group),
+              alpha = 0.5, color = NA) +
+  # full density outline
+  geom_line(size = 0.5) +
+  # short vertical line at mode (only up to the peak of the density)
+  geom_segment(aes(x = mode_x, xend = mode_x,
+                   y = 0, yend = mode_y,
+                   color = group),
+               data = modes, linetype = "solid", size =1) +
+  # reference at 0
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(x = "Posterior distribution of absolute slopes", y = "Density") +
+   scale_color_manual(values = c("violetred", "orange", "blue")) +
+  scale_fill_manual(values = c("violetred", "orange", "blue")) +
+  scale_x_continuous(breaks = seq(floor(min(dens_df$x)),
+                                  ceiling(max(dens_df$x)),
+                                  by = 0.5)) +
+custom_theme +
+  theme(legend.position="none")  +
+  ylim(0, 14)
+
+estimates_InterandSlopes
+```
+
+
+
+
+
+
+
+
+# Figure 1b: Modeling the Bateman gradient in females with standardised values 
+
+Notes on mixed effect models:  marginal and conditional R² calculation
+R-squared is a measure of how well a model fits the data.
+Marginal R-squared: It represents the proportion of variance explained by the fixed effects in the model, considering only the population-level components. It quantifies how well the fixed effects explain the variability in the response variable across all levels of the random effects.
+Conditional R-squared: It represents the proportion of variance explained by both the fixed and random effects in the model. It considers the population-level and individual-level components and quantifies how well the fixed and random effects together explain the variability in the response variable.
+Calculate variance explained
+Log normal: The log normal transformation involves taking the natural logarithm of the response variable in the GLMM. This transformation is commonly used when the data exhibits skewed or non-normal distribution. The log normal method has resulted in R-squared values  (R2m) and  (R2c).
+````{r, warning=FALSE}
+
+#Obtaning relative mating and reproductive success
+fe <- fe %>%
+  mutate(
+    totalmates.z= totalmates / mean(totalmates),
+    mean_st_off_ = totaloff / mean(totaloff)
+  )
+
+
+mod <- lmer(mean_st_off_~ 
+                totalmates.z  + 
+                (1|year),
+             data = fe)
+
+summary(mod)
+mod
+MuMIn::r.squaredGLMM(mod)
+````
+
+## Assesing model assumptions 
+```{r}
+par(mfrow=c(3,2))
+scatter.smooth(fitted(mod),resid(mod));abline(h=0, lty=2)
+title("Tukey-Ascombe plot") #residual vs fitted, indicates strong shrinkage
+
+qqnorm(resid(mod), main = "normal qq-plot, residuals") #"qq of residuals"
+qqline(resid(mod))
+scatter.smooth(fitted(mod),sqrt(abs(resid(mod)))) # res.var vs fitted 
+qqnorm(ranef(mod)$year[, 1], main="normal qq-plot, random effect:year")
+qqline(ranef(mod)$year[,1]) # qq of random effect
+
+#Checking if model has over dispersion
+# calculate the residual deviance and degrees of freedom
+dispersion_glmer(mod) # if under 1 no over dispersion
+
+#look at the residuals
+par(mfrow=c(2,2)) 
+scatter.smooth(fitted(mod),resid(mod)) #look OK
+scatter.smooth(fe$year, resid(mod)) #look OK 
+```
+
+## Table S1b (Supplementary): Drawing conclusions
+```{r, warning=FALSE}
+set.seed(123) 
+nsim <- 10000
+bsim <- sim(mod,n.sim=nsim)
+str(bsim)
+
+round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+round(sum(bsim@fixef[,1] > 0) / nsim, 3) #0.362
+round(sum(bsim@fixef[,2] > 0) / nsim, 3) #0.999
+```
+
+# Table S1b
+```{r}
+
+# --- 1. Quantiles for fixed effects ---
+qtab <- round(apply(bsim@fixef, 2, quantile, prob = c(0.025, 0.5, 0.975)), 2)
+
+# --- 2. Posterior probability > 0 ---
+prop_gt0 <- round(apply(fixef(bsim), 2, function(x) mean(x > 0)), 3)
+
+# --- 3. Combine into a data frame ---
+result_table <- as.data.frame(t(qtab)) %>%
+  mutate(`P(β > 0)` = prop_gt0) %>%
+  rownames_to_column(var = "Effect") %>%
+  mutate(`β (95% Crl)` = paste0(`50%`, " (", `2.5%`, ", ", `97.5%`, ")")) %>%
+  select(Effect, `β (95% Crl)`, `P(β > 0)`)
+
+# --- 4. Rename fixed effects ---
+result_table$Effect <- recode(result_table$Effect,
+  "(Intercept)" = "Intercept: females",
+  "totalmates.z" = "Mating success: females"
+)
+
+# --- 5. Add random effect: year ---
+year_quant <- round(quantile(as.vector(bsim@ranef$year), prob = c(0.025, 0.5, 0.975)), 2)
+year_prop <- round(sum(as.vector(bsim@ranef$year) > 0) / length(as.vector(bsim@ranef$year)), 3)
+
+year_row <- data.frame(
+  Effect = "Random effect: year 15 groups",
+  `β (95% Crl)` = paste0(year_quant["50%"], " (", year_quant["2.5%"], ", ", year_quant["97.5%"], ")"),
+  `P(β > 0)` = year_prop,
+  check.names = FALSE
+)
+
+result_table <- bind_rows(result_table, year_row)
+
+# --- 6. R² values for lognormal model ---
+r2_log <- MuMIn::r.squaredGLMM(mod)[1, ]
+r2_text <- paste0("R²m = ", round(r2_log["R2m"], 3), ", R²c = ", round(r2_log["R2c"], 3))
+
+# --- 6a. Extract number of observations and the number of groups of random effect ---
+n_obs <- nobs(mod)
+n_groupsranef<- ngrps(mod)["year"]
+
+# --- 7. Render gt table with bold random effect row ---
+tab <- result_table %>%
+  gt() %>%
+  tab_header(
+    title = "a) Standardized values: females black coucals",
+    subtitle = paste0("Reproductive success\nN = ", n_obs, " obs. of 120 ind.\n", r2_text)
+  ) %>%
+  cols_label(
+    `β (95% Crl)` = "β (95% Crl)",
+    `P(β > 0)` = "P(β) > 0"
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold"),
+      cell_borders(sides = "top", color = "black", weight = px(2))
+    ),
+    locations = cells_body(
+      rows = Effect == "Random effect: year")
+  ) %>% 
+  # Align all columns to the left
+  cols_align(
+    align = "left",
+    columns = everything()
+  ) %>% 
+  # Align column labels and table to the left
+  tab_options(
+    table.align = "left"
+    
+  )
+
+# --- 8. Show table ---
+tab
+
+#save the table:
+gtsave(tab, "supl/TableS1b_females_BC.pdf")
+
+```
+
+
+
+## Fitting the model
+````{r}
+# Calculate the range of values for totalmates_s
+range_totalmates.z <- range(fe$totalmates.z, na.rm = TRUE)
+
+# Display the range
+range_totalmates.z
+
+newdat <- expand.grid(totalmates.z=seq(0.52,2.62,length=100))
+
+Xmat <- model.matrix(~
+                        totalmates.z , data=newdat)
+
+fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
+for(i in 1:nsim) fitmat[,i] <- (Xmat%*%bsim@fixef[i,])
+newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
+newdat$fit <- (Xmat%*%fixef(mod))
+
+head(newdat)
+
+par(mfrow=c(1,1))
+
+# Calculate the range of values for totalmates_s in the filtered data set
+range_totalmates.z <- range(fe$totalmates.z, na.rm = FALSE)
+
+# Display the range
+range_totalmates.z #
+
+# Calculate the range of values for totalmates_s in the filtered data set
+range_mean_st_off <- range(fe$mean_st_off_, na.rm = FALSE)
+
+# Display the range
+range_mean_st_off #
+
+````
+
+## Figure 1b:Create a scatter plot for females with standardised models 
+```{r, warning=FALSE}
+plotfs <- ggplot(fe, aes(x = jitter(totalmates.z, 0.15), y = jitter(mean_st_off_, 0.5))) +
+   geom_point(shape = 17,alpha = 0.2, size=3,color = "violetred") +
+   labs(x = "Mating success (mean standardized)", y = "Reproductive success (mean standardized)") +
+   ylim(0, 6)+ # Set x-axis breaks 
+   labs(title = "Females (n = 120)")+
+   custom_theme
+plotfs
+
+# Add lines to the scatter plot
+# Add lines without filtering by sex
+plotfs <- plotfs +
+   geom_line(data = newdat, aes(x = totalmates.z, y = fit), color = "violetred", size = 1.5) +
+   geom_line(data = newdat, aes(x = totalmates.z, y = lwr), linetype = "solid", color = "violetred") +
+   geom_line(data = newdat, aes(x = totalmates.z, y = upr), linetype = "solid", color = "violetred")
+
+# Add dashed reference lines
+females_plot_s <- plotfs 
+
+# Print the plot
+print(females_plot_s)
+```
+```{r}
+
+#extracting the posterior draws of the slopes 
+slope_females <- bsim@fixef[, "totalmates.z"] 
+
+
+# posterior summaries
+summarize_slope <- function(slope_draws) {
+  mean_val <- mean(slope_draws)
+  ci <- quantile(slope_draws, probs = c(0.025, 0.975))
+  p_gt0 <- mean(slope_draws > 0)
+  c(mean = mean_val, lwr = ci[1], upr = ci[2], p_gt0 = p_gt0)
+}
+
+summary_females <- summarize_slope(slope_females)
+
+
+summary_females
+
+
+# summaries for each group (mean, lwr, upr)
+summaries <- data.frame(
+  group = c("Females"),
+  rbind(summary_females),
+  row.names = NULL
+)
+
+# compute densities for each slope
+dens_list <- list(
+  Females = density(slope_females)
+)
+
+# build density dataframe and add summaries
+dens_df <- do.call(rbind, lapply(names(dens_list), function(gr) {
+  d <- dens_list[[gr]]
+  s <- summaries[summaries$group == gr, ]
+  data.frame(x = d$x,
+             y = d$y,
+             group = gr,
+             mean = s$mean,
+             lwr = s$lwr,
+             upr = s$upr)
+}))
+
+# compute density mode (x where density is maximized, and its y height)
+modes <- dens_df %>%
+  group_by(group) %>%
+  slice_max(y, n = 1, with_ties = FALSE) %>%
+  select(group, mode_x = x, mode_y = y)
+```
+
+
+```{r}
+# plot
+fe_estimates_bateman_st <- ggplot(dens_df, aes(x = x, y = y, color = group)) +
+  # ribbon between lwr and upr
+  geom_ribbon(aes(ymin = 0, ymax = ifelse(x >= lwr & x <= upr, y, NA),
+                  fill = group),
+              alpha = 0.5, color = NA) +
+  # full density outline
+  geom_line(size = 0.5) +
+  # short vertical line at mode (only up to the peak of the density)
+  geom_segment(aes(x = mode_x, xend = mode_x,
+                   y = 0, yend = mode_y,
+                   color = group),
+               data = modes, linetype = "solid", size =1) +
+  # reference at 0
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(x = "Posterior distribution of standardized slope", y = "Density") +
+   scale_color_manual(values = c("violetred")) +
+  scale_fill_manual(values = c("violetred")) +
+  scale_x_continuous(breaks = seq(floor(min(dens_df$x)),
+                                  ceiling(max(dens_df$x)),
+                                  by = 0.5)) +
+  custom_theme +
+  theme(legend.position="none")  +
+  ylim(0, 14)
+
+fe_estimates_bateman_st
+```
+
+
+# Figure 1b: Modeling the Bateman gradient in males with standardised values 
+
+Notes on mixed effect models:  marginal and conditional R² calculation
+R-squared is a measure of how well a model fits the data.
+Marginal R-squared: It represents the proportion of variance explained by the fixed effects in the model, considering only the population-level components. It quantifies how well the fixed effects explain the variability in the response variable across all levels of the random effects.
+Conditional R-squared: It represents the proportion of variance explained by both the fixed and random effects in the model. It considers the population-level and individual-level components and quantifies how well the fixed and random effects together explain the variability in the response variable.
+Calculate variance explained
+Log normal: The log normal transformation involves taking the natural logarithm of the response variable in the GLMM. This transformation is commonly used when the data exhibits skewed or non-normal distribution. 
+````{r, warning=FALSE}
+
+ma_om <- ma%>%
+  mutate(
+    totalmates.z= totalmates / mean(totalmates),
+    mean_st_off_ = totaloff / mean(totaloff)
+  )
+
+
+mod <- lmer(mean_st_off_ ~ totalmates.z *category +
+               (1|year),
+            data = ma_om, 
+            control=lmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+mod
+MuMIn::r.squaredGLMM(mod)
+````
+
+## Assesing model assumptions 
+```{r, warning=FALSE}
+par(mfrow=c(3,2))
+scatter.smooth(fitted(mod),resid(mod));abline(h=0, lty=2)
+title("Tukey-Ascombe plot") #residual vs fitted, indicates strong shrinkage
+
+qqnorm(resid(mod), main = "normal qq-plot, residuals") #"qq of residuals"
+qqline(resid(mod))
+scatter.smooth(fitted(mod),sqrt(abs(resid(mod)))) # res.var vs fitted 
+qqnorm(ranef(mod)$year[, 1], main="normal qq-plot, random effect:year")
+qqline(ranef(mod)$year[,1]) # qq of random effect
+
+#Checking if model has over dispersion
+# calculate the residual deviance and degrees of freedom
+dispersion_glmer(mod) # if under 1 no over dispersion
+
+#look at the residuals
+par(mfrow=c(2,2)) 
+scatter.smooth(fitted(mod),resid(mod)) #look OK
+scatter.smooth(ma_om$year, resid(mod)) #look OK 
+```
+
+##Table S1b (Supplementary): Drawing conclusions
+```{r, warning=FALSE}
+set.seed(123) 
+nsim <- 10000
+bsim <- sim(mod,n.sim=nsim)
+str(bsim)
+round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+round(sum(bsim@fixef[,1] > 0) / nsim, 3) #
+round(sum(bsim@fixef[,2] > 0) / nsim, 3) #
+round(sum(bsim@fixef[,3] > 0) / nsim, 3) #
+round(sum(bsim@fixef[,4] > 0) / nsim, 3) #
+
+#Calculate the quantiles (2.5%, 50%, and 97.5%) for the entire random effect distribution,
+round(quantile(as.vector(bsim@ranef$year), prob = c(0.025, 0.5, 0.975)),2)
+
+# Proportion of values greater than 0 for random effects
+sum(as.vector(bsim@ranef$year) > 0) / length(as.vector(bsim@ranef$year))
+```
+
+#Table S1b
+```{r}
+# --- 1. Quantiles for fixed effects ---
+qtab <- round(apply(bsim@fixef, 2, quantile, prob = c(0.025, 0.5, 0.975)), 2)
+
+# --- 2. Posterior probability > 0 ---
+prop_gt0 <- round(apply(fixef(bsim), 2, function(x) mean(x > 0)), 3)
+
+# --- 3. Combine into a data frame ---
+result_table <- as.data.frame(t(qtab)) %>%
+  mutate(`P(β > 0)` = prop_gt0) %>%
+  rownames_to_column(var = "Effect") %>%
+  mutate(`β (95% Crl)` = paste0(`50%`, " (", `2.5%`, ", ", `97.5%`, ")")) %>%
+  select(Effect, `β (95% Crl)`, `P(β > 0)`)
+
+# --- 4. Rename fixed effects ---
+result_table$Effect <- recode(result_table$Effect,
+  "(Intercept)" = "Intercept: males with ENO",
+  "totalmates.z" = "Mating success: males without ENO",
+  "category3malesENO" = "Intercept: males with ENO",
+  "totalmates.z:category3malesENO" = "Mating success: males with ENO"
+)
+
+# --- 5. Add random effect: year ---
+year_quant <- round(quantile(as.vector(bsim@ranef$year), prob = c(0.025, 0.5, 0.975)), 2)
+year_prop <- round(sum(as.vector(bsim@ranef$year) > 0) / length(as.vector(bsim@ranef$year)), 3)
+
+year_row <- data.frame(
+  Effect = "Random effect: year 15 groups",
+  `β (95% Crl)` = paste0(year_quant["50%"], " (", year_quant["2.5%"], ", ", year_quant["97.5%"], ")"),
+  `P(β > 0)` = year_prop,
+  check.names = FALSE
+)
+
+result_table <- bind_rows(result_table, year_row)
+
+# --- 6. R² values for lognormal model ---
+r2_log <- MuMIn::r.squaredGLMM(mod)[1, ]
+r2_text <- paste0("R²m = ", round(r2_log["R2m"], 3), ", R²c = ", round(r2_log["R2c"], 3))
+
+# --- 6a. Extract number of observations and the number of groups of random effect ---
+n_obs <- nobs(mod)
+n_groupsranef<- ngrps(mod)["year"]
+
+# --- 7. Render gt table with bold random effect row ---
+tab <- result_table %>%
+  gt() %>%
+  tab_header(
+    title = "a) Standardized values: males black coucal",
+    subtitle = paste0("Reproductive success\nN = ", n_obs, " obs. of 179 ind.\n", r2_text)
+  ) %>%
+  cols_label(
+    `β (95% Crl)` = "β (95% Crl)",
+    `P(β > 0)` = "P(β) > 0"
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold"),
+      cell_borders(sides = "top", color = "black", weight = px(2))
+    ),
+    locations = cells_body(
+      rows = Effect == "Random effect: year")
+  ) %>% 
+  # Align all columns to the left
+  cols_align(
+    align = "left",
+    columns = everything()
+  ) %>% 
+  # Align column labels and table to the left
+  tab_options(
+    table.align = "left"
+    
+  )
+
+# --- 8. Show table ---
+tab
+
+#save the table:
+gtsave(tab, "supl/TableS1b_males_BC.pdf")
+
+
+```
+## Fitting the model
+````{r}
+# Calculate the range of values for totalmates_s
+range_totalmates.z <- range(ma_om$totalmates.z, na.rm = TRUE)
+
+# Display the range
+range_totalmates.z #
+
+newdat <- expand.grid(totalmates.z=seq(0.92, 1.85,length=100), category = levels(ma_om$category))
+
+Xmat <- model.matrix(~
+                        totalmates.z *category, data=newdat)
+
+fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
+for(i in 1:nsim) fitmat[,i] <- (Xmat%*%bsim@fixef[i,])
+newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
+newdat$fit <- (Xmat%*%fixef(mod))
+
+head(newdat)
+
+par(mfrow=c(1,1))
+
+# Calculate the range of values for totalmates_s in the filtered data set
+range_totalmates.z <- range(ma_om$totalmates.z, na.rm = FALSE)
+
+# Display the range
+range_totalmates.z 
+# Calculate the range of values for totalmates_s in the filtered data set
+range_mean_st_off <- range(ma_om$mean_st_off_, na.rm = FALSE)
+
+# Display the range
+range_mean_st_off
+
+````
+## Figure 1b: Create a scaterplot for males
+````{r}
+## Create a scatter plot for males with standardised models 
+
+plotmf <- ggplot(ma_om, aes(x = jitter(totalmates.z, 0.15), y = jitter(mean_st_off_, 0.5), color = category)) +
+   geom_point(shape = 16, alpha = 0.2, size = 3)+
+   labs(x = "Mating success (mean standardized)", y = "Reproductive success (mean standardized)") +
+   labs(title = "Males (n = 179) ")+
+  xlim(0.9, 2)+
+   ylim(0,6) +
+   labs(color = "Extra nest offspring") + 
+   theme_bw()+
+   scale_color_manual(values = c( "blue","orange"), 
+                      labels = c("without (n = 144)", "with (n = 35)"),
+                      guide = guide_legend(override.aes = list(shape = 16, size = 5, alpha=1)))+# Change the labels to desired names
+    custom_theme + 
+   theme(
+                     legend.position = c(.99, .99),
+                     legend.justification = c("right", "top"),
+                     legend.box.just = "right",
+         legend.margin = margin(t = 0, b = 0, l = 0, r = 0)) 
+
+# Display the plot
+plotmf
+
+# Add lines to the scatter plot
+# Add lines to the scatter plot for 3malesENO
+index <- newdat$category == "3malesENO"
+plotmf <- plotmf +
+   geom_line(data = newdat[index, ], aes(x = totalmates.z, y = fit), color = "orange", size = 1.5) +
+   geom_line(data = newdat[index, ], aes(x = totalmates.z, y = lwr), linetype = "solid", color = "orange") +
+   geom_line(data = newdat[index, ], aes(x = totalmates.z, y = upr), linetype = "solid", color = "orange")
+
+# Add lines to the scatter plot for 2males
+index <- newdat$category == "2males"
+plotmf <- plotmf +
+   geom_line(data = newdat[index, ], aes(x = totalmates.z, y = fit), color = "blue", size = 1.5) +
+   geom_line(data = newdat[index, ], aes(x = totalmates.z, y = lwr), linetype = "solid", color = "blue") +
+   geom_line(data = newdat[index, ], aes(x = totalmates.z, y = upr), linetype = "solid", color = "blue")
+
+
+# Add dashed reference lines
+males_plot_s <- plotmf +
+  guides(
+    colour = guide_legend(
+      override.aes = list(size = 2.5, alpha = 0.7) # smaller, transparent symbols
+    )
+  )
+
+# Print the plot
+print(males_plot_s)
+
+
+````
+
+
+````{r}
+## Calculate the credible intervals for slopes of each category (standardized data) in males 
+
+set.seed(123)
+nsim <- 10000
+bsim <- sim(mod,n.sim=nsim)
+str(bsim)
+round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+colnames(bsim@fixef)
+````
+
+```{r}
+Int_ma_without <- bsim@fixef[, 1]
+round(sum(Int_ma_without > 0) / nsim, 3)      # Proportion of posterior > 0
+round(mean(Int_ma_without), 2)  #0.34             # Posterior mean
+round(quantile(Int_ma_without, c(0.025, 0.975)), 3) # -0.127  0.891
+```
+
+## Table 1: standardized bateman gradient values (linear regression by sex)
+```{r}
+Slop_ma_without <- bsim@fixef[, 2]
+round(sum(Slop_ma_without > 0) / nsim, 3)
+round(mean(Slop_ma_without), 2) #0.55
+round(quantile(Slop_ma_without, c(0.025, 0.975)), 2) #-0.03  1.13
+```
+```{r}
+Int_ma_3malesENO <- bsim@fixef[, "(Intercept)"] + bsim@fixef[, "category3malesENO"]
+round(mean(Int_ma_3malesENO), 2) #1.37
+round(quantile(Int_ma_3malesENO, c(0.025, 0.975)), 2) #0.92  1.83 
+```
+
+## Table 1: standardized bateman gradient values (linear regression by sex)
+```{r}
+Slop_ma_3malesENO <- bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category3malesENO"]
+round(mean(Slop_ma_3malesENO), 2) #0.13
+round(quantile(Slop_ma_3malesENO, c(0.025, 0.975)), 2) #-0.23  0.47 
+round(sum(Slop_ma_3malesENO > 0) / nsim, 3) #0.751
+```
+## Figure 1d: Estimates intercepts and slopes
+
+
+```{r}
+
+#extracting the posterior draws of the slopes 
+slope_2males <- bsim@fixef[, "totalmates.z"] 
+slope_3malesENO <- bsim@fixef[, "totalmates.z"] + bsim@fixef[, "totalmates.z:category3malesENO"]
+
+# posterior summaries
+summarize_slope <- function(slope_draws) {
+  mean_val <- mean(slope_draws)
+  ci <- quantile(slope_draws, probs = c(0.025, 0.975))
+  p_gt0 <- mean(slope_draws > 0)
+  c(mean = mean_val, lwr = ci[1], upr = ci[2], p_gt0 = p_gt0)
+}
+
+
+summary_males2  <- summarize_slope(slope_2males)
+summary_males3ENO  <- summarize_slope(slope_3males)
+
+
+summary_males2
+summary_males3ENO
+
+# summaries for each group (mean, lwr, upr)
+summaries <- data.frame(
+  group = c("Males without ENO", "Males with ENO"),
+  rbind( summary_males2, summary_males3ENO),
+  row.names = NULL
+)
+
+# compute densities for each slope
+dens_list <- list(
+  `Males without ENO` = density(slope_2males),
+  `Males with ENO` = density(slope_3malesENO)
+)
+
+# build density dataframe and add summaries
+dens_df <- do.call(rbind, lapply(names(dens_list), function(gr) {
+  d <- dens_list[[gr]]
+  s <- summaries[summaries$group == gr, ]
+  data.frame(x = d$x,
+             y = d$y,
+             group = gr,
+             mean = s$mean,
+             lwr = s$lwr,
+             upr = s$upr)
+}))
+
+# compute density mode (x where density is maximized, and its y height)
+modes <- dens_df %>%
+  group_by(group) %>%
+  slice_max(y, n = 1, with_ties = FALSE) %>%
+  select(group, mode_x = x, mode_y = y)
+```
+
+```{r}
+# plot
+ma_estimates_st <- ggplot(dens_df, aes(x = x, y = y, color = group)) +
+  # ribbon between lwr and upr
+  geom_ribbon(aes(ymin = 0, ymax = ifelse(x >= lwr & x <= upr, y, NA),
+                  fill = group),
+              alpha = 0.5, color = NA) +
+  # full density outline
+  geom_line(size = 0.5) +
+  # short vertical line at mode (only up to the peak of the density)
+  geom_segment(aes(x = mode_x, xend = mode_x,
+                   y = 0, yend = mode_y,
+                   color = group),
+               data = modes, linetype = "solid", size =1) +
+  # reference at 0
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(x = "Posterior distribution of absolute slopes", y = "Density") +
+   scale_color_manual(values = c( "orange", "blue")) +
+  scale_fill_manual(values = c( "orange", "blue")) +
+  scale_x_continuous(breaks = seq(floor(min(dens_df$x)),
+                                  ceiling(max(dens_df$x)),
+                                  by = 0.5)) +
+custom_theme+
+  theme(legend.position="none")  +
+  ylim(0, 14)
+
+ma_estimates_st
+
+
+```
+
+
+
+##Plot females and males gradients with standardised values 
+````{r, warning=FALSE}
+# Combine the plots
+Standard_gradients <- grid.arrange(
+  females_plot_s, 
+  nullGrob(),
+  males_plot_s,
+  nrow = 1,
+   widths = c(8, 1 ,5)
+  )
+
+# Display the combined plot
+print(Standard_gradients)
+
+````
+## Combining figures of the Bateman gradient
+
+```{r}
+# Panel A
+panelA <- arrangeGrob(females_plot1,nullGrob(), males_plot1, nrow = 1, widths = c(2, 0.2, 1))
+panelA <- arrangeGrob(textGrob("A", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+                      panelA, ncol = 1, heights = c(0.1, 1))
+
+# Panel B
+panelB <- arrangeGrob(females_plot_s, nullGrob(), males_plot_s, nrow = 1, widths = c(2, 0.2, 1))
+panelB <- arrangeGrob(textGrob("B", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+                      panelB, ncol = 1, heights = c(0.1, 1))
+
+#Panel C
+panelC<- estimates_InterandSlopes
+panelC <- arrangeGrob(textGrob("C", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+                      panelC, ncol = 1, heights = c(0.1, 1))
+
+#Panel D
+panelD<-arrangeGrob(fe_estimates_bateman_st, nullGrob(), ma_estimates_st, nrow = 1, widths = c(2, 0.2, 1))
+panelD <- arrangeGrob(textGrob("D", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+                      panelD, ncol = 1, heights = c(0.1, 1))
+
+leftpanel<- grid.arrange(
+  panelA,
+   nullGrob(),
+  panelC,
+  ncol = 1,
+  heights = c(1.5, 0.1, 1)  # adjust heights if you want Panel C taller or shorter
+)
+
+
+leftpanel
+
+rightpanel<- grid.arrange(
+  panelB,
+   nullGrob(),
+  panelD,
+  ncol = 1,
+  heights = c(1.5, 0.1, 1)  # adjust heights if you want Panel C taller or shorter
+)
+rightpanel
+
+# Stack rows
+multi_panel <- grid.arrange(leftpanel, nullGrob(), rightpanel, ncol = 3, widths  = c(1, 0.2, 1))
+
+
+ggsave("figures/black coucals/Fig1_gradients_BC.png", plot = multi_panel ,  width = 20, height = 10, dpi = 300)
+
+```
+
+
+
+
+
+
+# Fig S1ab (Supplementary): Modeling the Bateman gradient in males with number of nests
+
+Notes on mixed effect models:  marginal and conditional R² calculation
+R-squared is a measure of how well a model fits the data.
+Marginal R-squared: It represents the proportion of variance explained by the fixed effects in the model, considering only the population-level components. It quantifies how well the fixed effects explain the variability in the response variable across all levels of the random effects.
+Conditional R-squared: It represents the proportion of variance explained by both the fixed and random effects in the model. It considers the population-level and individual-level components and quantifies how well the fixed and random effects together explain the variability in the response variable.
+Calculate variance explained
+Log normal: The log normal transformation involves taking the natural logarithm of the response variable in the GLMM. This transformation is commonly used when the data exhibits skewed or non-normal distribution. 
+```{r, warning=FALSE}
+
+mod <- glmer(totaloff~ 
+             totalnest_sum *category + 
+               (1|year), family="poisson", 
+             data = dataclean, 
+             control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+
+mod
+MuMIn::r.squaredGLMM(mod)
+dispersion_glmer(mod)
+```
+
+## Assessing model assumptions 
+```{r, warning=FALSE}
+# Set up a 3x2 grid for multiple plots
+par(mfrow=c(3,2))
+
+# Create a Tukey-Ascombe plot showing residual vs. fitted values with a horizontal line at y=0
+scatter.smooth(fitted(mod), resid(mod))
+abline(h=0, lty=2)
+title("Tukey-Ascombe plot") # Title for the plot, indicating strong shrinkage
+
+# Create a normal quantile-quantile (QQ) plot of residuals for assessing normality
+qqnorm(resid(mod), main = "normal qq-plot, residuals") # "QQ of residuals"
+qqline(resid(mod))  # Add a reference line to the QQ-plot
+
+# Create a scatter plot of square root of absolute residuals vs. fitted values
+scatter.smooth(fitted(mod), sqrt(abs(resid(mod))))
+               
+# Checking if the model has over dispersion
+# Calculate the residual deviance and degrees of freedom to assess over dispersion
+dispersion_glmer(mod)  # If the value is under 1, there is no over dispersion
+               
+#Look at the residuals
+par(mfrow=c(2,2)) 
+scatter.smooth(fitted(mod),resid(mod)) #look OK
+
+# Before drawing conclusions, the linear predictors need to be transformed.
+# Since a log-link function was used, we need to use the "exp" function for transformation.
+# Refer to Korner-Nievergel et al. (2015). Bayesian Data Analysis in Ecology Using Linear Models with R, BUGS, and Stan (1st edition). Academic Press, page 149 for details on this transformation.
+
+```
+
+## Table S3 (Supplementary): Drawing conclusions 
+```{r}
+set.seed(123)
+# Set the number of simulations
+nsim <- 10000
+
+# Simulate the model 'mod' with 'nsim' iterations and store the results in 'bsim'
+bsim <- sim(mod, n.sim = nsim)
+
+# Examine the structure of the 'bsim' object
+str(bsim)
+
+# Calculate quantiles for the fixed effects (coefficients) of the model at probabilities 0.025, 0.5, and 0.975, rounded to two decimal places
+round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+
+# Calculate the proportion the for each fixed effect (column 1) that is greater than 0
+round(sum(fixef(bsim)[,1]>0)/nsim,3) #0.997
+round(sum(fixef(bsim)[,2]>0)/nsim,3) #0.999
+round(sum(fixef(bsim)[,3]>0)/nsim,3) #0.969
+round(sum(fixef(bsim)[,4]>0)/nsim,3)#0.005
+
+#Calculate the quantiles (2.5%, 50%, and 97.5%) for the entire random effect distribution,
+round(quantile(as.vector(bsim@ranef$year), prob = c(0.025, 0.5, 0.975)),2)
+
+# Proportion of values greater than 0 for random effects
+sum(as.vector(bsim@ranef$year) > 0) / length(as.vector(bsim@ranef$year))
+
+```
+
+# Table S3
+```{r}
+# --- 1. Quantiles for fixed effects ---
+qtab <- round(apply(bsim@fixef, 2, quantile, prob = c(0.025, 0.5, 0.975)), 2)
+
+# --- 2. Posterior probability > 0 ---
+prop_gt0 <- round(apply(fixef(bsim), 2, function(x) mean(x > 0)), 3)
+
+# --- 3. Combine into a data frame ---
+result_table <- as.data.frame(t(qtab)) %>%
+  mutate(`P(β > 0)` = prop_gt0) %>%
+  rownames_to_column(var = "Effect") %>%
+  mutate(`β (95% Crl)` = paste0(`50%`, " (", `2.5%`, ", ", `97.5%`, ")")) %>%
+  select(Effect, `β (95% Crl)`, `P(β > 0)`)
+
+# --- 4. Rename fixed effects ---
+result_table$Effect <- recode(result_table$Effect,
+  "(Intercept)" = "Intercept: males without ENO",
+  "totalnest_sum" = "Number of nests: males without ENO",
+  "category3malesENO" = "Males with ENO",
+  "totalnest_sum:category3malesENO" = "Number of nests: males with ENO"
+)
+
+# --- 5. Add random effect: year ---
+year_quant <- round(quantile(as.vector(bsim@ranef$year), prob = c(0.025, 0.5, 0.975)), 2)
+year_prop <- round(sum(as.vector(bsim@ranef$year) > 0) / length(as.vector(bsim@ranef$year)), 3)
+
+year_row <- data.frame(
+  Effect = "Random effect: year 15 groups",
+  `β (95% Crl)` = paste0(year_quant["50%"], " (", year_quant["2.5%"], ", ", year_quant["97.5%"], ")"),
+  `P(β > 0)` = year_prop,
+  check.names = FALSE
+)
+
+result_table <- bind_rows(result_table, year_row)
+
+# --- 6. R² values for lognormal model ---
+r2_log <- MuMIn::r.squaredGLMM(mod)[1, ]
+r2_text <- paste0("R²m = ", round(r2_log["R2m"], 3), ", R²c = ", round(r2_log["R2c"], 3))
+
+# --- 6a. Extract number of observations and the number of groups of random effect ---
+n_obs <- nobs(mod)
+n_groupsranef<- ngrps(mod)["year"]
+
+# --- 7. Render gt table with bold random effect row ---
+tab <- result_table %>%
+  gt() %>%
+  tab_header(
+    title = "Estimates of effects of number of nests and male categories in black coucals",
+    subtitle = paste0("Reproductive success\nN = ", n_obs, " obs. of 179 ind.\n", r2_text)
+  ) %>%
+  cols_label(
+    `β (95% Crl)` = "β (95% Crl)",
+    `P(β > 0)` = "P(β) > 0"
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(weight = "bold"),
+      cell_borders(sides = "top", color = "black", weight = px(2))
+    ),
+    locations = cells_body(
+      rows = Effect == "Random effect: year")
+  ) %>% 
+  # Align all columns to the left
+  cols_align(
+    align = "left",
+    columns = everything()
+  ) %>% 
+  # Align column labels and table to the left
+  tab_options(
+    table.align = "left"
+    
+  )
+
+# --- 8. Show table ---
+tab
+
+#save the table:
+gtsave(tab, "supl/TableS3_BC.pdf")
+
+
+```
+
+## Fitting the model 
+````{r}
+
+
+# Filter rows where level is "1females"
+dataclean <- dataclean %>%
+  filter(category != "1females") %>% droplevels()
+
+# View the result
+print(dataclean)
+
+# Calculate the range of values for the 'range_totalnest_sum variable in 'dataclean'
+range_totalnest_sum<- range(dataclean$totalnest_sum, na.rm = TRUE)
+
+# Display the range of range_totalnest_sum
+range_totalnest_sum
+
+# Create a new data frame 'newdat' for plotting, with 'totalmates' ranging from 0 to 5
+newdat <- expand.grid(totalnest_sum = seq(1, 5, length = 100), category = levels(dataclean$category))
+
+# Display the table of 'category' levels
+table(newdat$category)
+
+# Examine the structure of the 'newdat' data frame
+str(newdat)
+
+# Create a design matrix 'Xmat' based on interactions between 'totalmates' and 'category'
+Xmat <- model.matrix(~ totalnest_sum * category, data = newdat)
+
+# Initialize an empty matrix 'fitmat' for storing model fit results
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+
+# Loop through simulations and populate 'fitmat' with fitted values
+for (i in 1:nsim) fitmat[, i] <- exp(Xmat %*% bsim@fixef[i,])
+
+# Calculate lower and upper quantiles for the fitted values and store them in 'newdat'
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values based on the original model and store them in 'newdat'
+newdat$fit <- exp(Xmat %*% fixef(mod))
+
+# Display the 'newdat' data frame
+head(newdat)
+
+````
+
+## Fig S1a (Supplementary): Create the scatterplot for males 
+
+```{r, warning=FALSE}
+#Males
+
+plot <- ggplot(dataclean, aes(x = jitter(totalnest_sum, 0.15), y = jitter(totaloff, 0.5), color = category)) +
+   geom_point(shape = 16, alpha = 0.4, size = 3)+
+   labs(x = "Number of nests", y = "Reproductive success") +
+   scale_y_continuous(breaks = seq(2, 20, by = 4)) +
+   xlim(1, 5) +
+  ylim(0, 18)+
+   theme(axis.text = element_text(size = 8), axis.title = element_text(size = 8), family = "Arial") +
+   labs(title = "Males (n = 179) ")+
+   labs(color = "Extra nest offspring") + 
+   scale_color_manual(values = c( "blue", "orange"), 
+                      labels = c("without (n = 144)", "with (n = 35)"),
+                      guide = guide_legend(override.aes = list(shape = 16, size = 5, alpha=1)))+# Change the labels to desired names
+   custom_theme +
+   theme(text = element_text(family = "Arial"),
+                     legend.position = c(.98, .99),
+                     legend.justification = c("right", "top"),
+                     legend.box.just = "right",
+         legend.margin = margin(t = 0, b = 0, l = 0, r = 0))
+
+# Display the plot
+plot
+
+# Add lines to the scatter plot
+index <- newdat$category == "3malesENO"
+plot <- plot +
+      geom_line(data = newdat[index & newdat$totalnest_sum <= 5 & newdat$totalnest_sum >= 2,], aes(x = totalnest_sum, y = fit), color = "orange", size = 1.5) +
+      geom_line(data = newdat[index & newdat$totalnest_sum<= 5 & newdat$totalnest_sum >= 2, ], aes(x = totalnest_sum, y = lwr), linetype = "solid", color = "orange") +
+      geom_line(data = newdat[index & newdat$totalnest_sum <= 5 & newdat$totalnest_sum >= 2,], aes(x = totalnest_sum, y = upr), linetype = "solid", color = "orange")
+plot
+
+index <- newdat$category == "2males"
+plot <- plot +
+      geom_line(data = newdat[index & newdat$totalnest_sum <= 3 &newdat$totalnest_sum >= 1, ], aes(x = totalnest_sum, y = fit), color = "blue", size = 1.5) +
+      geom_line(data = newdat[index & newdat$totalnest_sum <= 3 &newdat$totalnest_sum >= 1,], aes(x = totalnest_sum, y = lwr), linetype = "solid", color = "blue") +
+      geom_line(data = newdat[index & newdat$totalnest_sum <= 3 & newdat$totalnest_sum >= 1,], aes(x = totalnest_sum, y = upr), linetype = "solid", color = "blue")
+plot
+
+males_nest<-plot +
+  guides(
+    colour = guide_legend(
+      override.aes = list(size = 2.5, alpha = 0.7) # smaller, transparent symbols
+    )
+  )
+
+
+```
+## Calculate the credible intervals for slopes of each category in males 
+````{r}
+set.seed(123)
+nsim <- 10000
+bsim <- sim(mod,n.sim=nsim)
+str(bsim)
+round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+head(bsim@fixef)
+````
+```{r}
+#Intercept males without ENO 
+Int_ma_without<- bsim@fixef[,"Intercept"]
+round(sum(bsim@fixef[,1]> 0) / nsim, 3) #0.999
+round(mean(Int_ma_without),2) # 0.40
+round(quantile(Int_ma_without, prob=c(0.025, 0.975)),3) #0.13, 0.67
+```
+
+```{r}
+#Slope males without ENO
+Slop_ma_without<- bsim@fixef[,"totalnest_sum"] 
+round(sum(bsim@fixef[,2]  > 0) / nsim, 3) #0.999
+round(mean(Slop_ma_without),3) #0.63
+round(quantile(Slop_ma_without, prob=c(0.025, 0.975)),2) #0.41  0.85 
+```
+
+```{r}
+#Intercept males with ENO
+Int_ma_with<- bsim@fixef[,"(Intercept)"] + bsim@fixef[,"category3malesENO"]
+round(sum(bsim@fixef[,3] > 0) / nsim, 3) #0.969
+round(mean(Int_ma_with),2) # 0.86
+round(quantile(Int_ma_with, prob=c(0.025, 0.975)),2) #0.46, 1.25
+```
+
+```{r}
+#Slope males with ENO
+Slop_ma_with<-  bsim@fixef[,"totalnest_sum"] + bsim@fixef[,"totalnest_sum:category3malesENO"]
+round(sum(bsim@fixef[,4] > 0) / nsim, 3)# 0.005
+round(mean(Slop_ma_with),2) #0.29
+round(quantile(Slop_ma_with, prob=c(0.025, 0.975)),2) #0.17 , 0.42 
+```
+## Fig S1b (Supplementary): Estimates and slopes
+```{r}
+# Create the data frame
+output2 <- data.frame(
+   res = c(
+           "dIntercept: males without ENO ",
+           "cSlope: males without ENO", 
+           "bIntercept: males with ENO",
+           "aSlope: males with ENO" ),
+   med = c(0.40, 0.63,  0.86,  0.29),
+   min = c(0.13, 0.41, 0.46,  0.17),
+   max = c(0.67,  0.85,  1.25,    0.42))
+
+output2
+
+```
+
+
+
+````{r}
+
+
+#extracting the posterior draws of the slopes 
+
+slope_2males <- bsim@fixef[, "totalnest_sum"] 
+slope_3malesENO <- bsim@fixef[, "totalnest_sum"] + bsim@fixef[, "totalnest_sum:category3malesENO"]
+
+# posterior summaries
+summarize_slope <- function(slope_draws) {
+  mean_val <- mean(slope_draws)
+  ci <- quantile(slope_draws, probs = c(0.025, 0.975))
+  p_gt0 <- mean(slope_draws > 0)
+  c(mean = mean_val, lwr = ci[1], upr = ci[2], p_gt0 = p_gt0)
+}
+
+
+summary_males2  <- summarize_slope(slope_2males)
+summary_males3ENO  <- summarize_slope(slope_3malesENO)
+
+
+summary_males2
+summary_males3
+
+# summaries for each group (mean, lwr, upr)
+summaries <- data.frame(
+  group = c( "Males without ENO", "Males with ENO"),
+  rbind(summary_males2, summary_males3ENO),
+  row.names = NULL
+)
+
+# compute densities for each slope
+dens_list <- list(
+  `Males without ENO` = density(slope_2males),
+  `Males with ENO` = density(slope_3malesENO)
+)
+
+# build density dataframe and add summaries
+dens_df <- do.call(rbind, lapply(names(dens_list), function(gr) {
+  d <- dens_list[[gr]]
+  s <- summaries[summaries$group == gr, ]
+  data.frame(x = d$x,
+             y = d$y,
+             group = gr,
+             mean = s$mean,
+             lwr = s$lwr,
+             upr = s$upr)
+}))
+
+# compute density mode (x where density is maximized, and its y height)
+modes <- dens_df %>%
+  group_by(group) %>%
+  slice_max(y, n = 1, with_ties = FALSE) %>%
+  select(group, mode_x = x, mode_y = y)
+
+````
+
+````{r}
+# plot
+ma_estimates_nest <- ggplot(dens_df, aes(x = x, y = y, color = group)) +
+  # ribbon between lwr and upr
+  geom_ribbon(aes(ymin = 0, ymax = ifelse(x >= lwr & x <= upr, y, NA),
+                  fill = group),
+              alpha = 0.5, color = NA) +
+  # full density outline
+  geom_line(size = 0.5) +
+  # short vertical line at mode (only up to the peak of the density)
+  geom_segment(aes(x = mode_x, xend = mode_x,
+                   y = 0, yend = mode_y,
+                   color = group),
+               data = modes, linetype = "solid", size =1) +
+  # reference at 0
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(x = "Posterior distribution of slopes", y = "Density") +
+   scale_color_manual(values = c( "orange", "blue")) +
+  scale_fill_manual(values = c( "orange", "blue")) +
+  scale_x_continuous(breaks = seq(floor(min(dens_df$x)),
+                                  ceiling(max(dens_df$x)),
+                                  by = 0.5)) +
+custom_theme + 
+  theme(legend.position="none")  +
+  ylim(0,8)
+
+ma_estimates_nest
+
+````
+
+
+
+
+
+
+##Calculating differences between slopes 
+```{r}
+
+# estimate differences between females and males of both male categories
+# Bateman gradient for females (reference)
+coefs <- bsim@fixef
+colnames(coefs)  # Check names to match correctly
+
+# Gradient for males without EPO
+male_no_ENO <- coefs[, "totalnest_sum"]
+
+# Gradient for males with ENO
+male_with_ENO <- coefs[, "totalnest_sum"] + coefs[, "totalnest_sum:category3malesENO"]
+
+
+# Males with ENO vs males without ENO
+diff_with_ENO_vs_no_ENO <- male_no_ENO -  male_with_ENO
+
+summarize_diff <- function(diff_samples, label) {
+  cat("Comparison:", label, "\n")
+  cat("  Mean difference:", mean(diff_samples), "\n")
+  cat("  95% CI:", quantile(diff_samples, probs = c(0.025, 0.975)), "\n")
+  cat("  P(group1 > group2):", mean(diff_samples > 0), "\n\n")
+}
+
+summarize_diff(diff_with_ENO_vs_no_ENO, "Males without ENO vs Males with ENO")
+
+```
+
+```{r}
+
+combinedsupl1 <- ggarrange(males_nest, ma_estimates_nest,
+  labels = c("A", "B"),
+  ncol = 1, nrow = 2
+)
+
+combinedsupl1
+
+#Panel A
+panelA<- males_nest
+panelA <- arrangeGrob(textGrob("A", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+                      panelA, ncol = 1, heights = c(0.1, 1))
+
+#Panel B
+panelB<- ma_estimates_nest
+panelB <- arrangeGrob(textGrob("B", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+                      panelB, ncol = 1, heights = c(0.1, 1))
+
+
+combinedsupl1<- grid.arrange(
+  panelA,
+   nullGrob(),
+  panelB,
+  ncol = 1,
+  heights = c(1.5, 0.1, 1)  # adjust heights if you want Panel C taller or shorter
+)
+combinedsupl1
+
+
+ggsave("supl/FigS1.png", plot = combinedsupl1 ,  width = 5,height = 8, dpi = 300)
+
+```
+
+
+# 7. Calculation path coefficient (for age) females 
+````{r}
+
+#1. Path coefficients 
+### 1.1 Female path coefficient (age).
+
+# ============================
+# Data Preprocessing
+# ============================
+
+#We summarise all by identity (=parent), because i have multiple data entries of some males (at least 3) across years
+
+summary_data <- dataclean %>%
+  dplyr::group_by(ring_no_lab, sex, category, age) %>%
+  dplyr::summarise(
+    mean_totaloff = mean(totaloff, na.rm = TRUE),
+    mean_totalmates = mean(totalmates, na.rm = TRUE),
+  ) %>%
+  dplyr::ungroup()
+
+
+# Convert the summarized tibble to a dataframe
+summary_dataframe <- as.data.frame(summary_data)
+
+# Display the structure of the summarized data
+head(summary_data)
+
+# Separate summary data for females and males with categories 
+fe_sum <- summary_data %>% filter(sex != "male") %>% droplevels()
+
+fe_sum <- fe_sum%>%
+  filter(!is.na(age)) %>%
+  mutate(
+    totalmates = mean_totaloff,
+    totaloff = mean_totaloff,
+    age = as.numeric(age),
+    scaled_age = as.numeric(scale(age))
+  )
+
+# ============================
+# Inspect Data
+# ============================
+head(fe_sum)
+
+# Sample size (unique ring_no_labs)
+fe_sum %>% distinct(ring_no_lab) %>% count()  # n = 51
+
+#Prepare data ----
+t.poly<- poly(fe_sum$scaled_age,2)
+fe_sum$age.l<-t.poly[,1] #linear term for age
+fe_sum$age.q<-t.poly[,2] #quadratic term for age
+
+Z.l<-t.poly[,1] #linear term for age
+Z.q<-t.poly[,2] #quadratic term for age
+
+# Trait variance standardized and relative reproductive/mating success
+fe_sum <- fe_sum %>%
+  mutate(
+    Z = (age - mean(age)) / sd(age),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+Z <- fe_sum$Z
+M <- fe_sum$M
+R <- fe_sum$R
+````
+
+
+```{r}
+
+# ============================
+# Path Coefficients
+# ============================
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z.l +Z.q))$coefficients["Z.l", 1]
+mod       <- glm(M ~ Z.l +Z.q, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z.l"]
+
+round(mean(beta_sims > 0), 3) 
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z.l +Z.q+ M))$coefficients["Z.l", 1]
+mod       <- glm(R ~ Z.l +Z.q + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z.l"]
+
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M))$coefficients["M", 1]
+mod       <- glm(R ~ M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+
+```{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~ Z.l +Z.q + M))$coefficients["M", 1]
+mod       <- glm(R ~ Z.l +Z.q + M, data = fe_sum)
+bsim      <- sim(mod, n.sims = 1000)
+beta_sims <- bsim@coef[, "M"]
+
+round(mean(beta_sims > 0), 3)  # Probability > 0
+round(mean(beta_sims),2)
+round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
+```
+```{r}
+# ============================
+# Raw Path Coefficient Calculations
+# ============================
+our_model_raw <- c(
+  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
+  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
+  total.selection     = rep(covRZ, n_sim)
+)
+
+# ============================
+# Fit Poisson Models
+# ============================
+betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
+betaMZraw <- summary(glm(M ~ Z ))$coefficients["Z", 1]
+betaRZraw <- summary(glm(R ~ Z + M ))$coefficients["Z", 1]
+
+mod_RM <- glm(R ~ Z + M, data = fe_sum)
+mod_MZ <- glm(M ~ Z, data = fe_sum)
+mod_RZ <- glm(R ~ Z + M, data = fe_sum)
+
+# ============================
+# Posterior Simulation
+# ============================
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+betaRM_sims <- sim_RM@coef[, "M"]
+betaMZ_sims <- sim_MZ@coef[, "Z"]
+betaRZ_sims <- sim_RZ@coef[, "Z"]
+
+varZ  <- var(Z, na.rm = TRUE)
+covRZ <- cov(Z, R, use = "complete.obs")
+
+# ============================
+# Simulated Path Coefficients
+# ============================
+sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
+remaining_selection <- varZ * betaRZ_sims
+total_selection     <- sexual_selection + remaining_selection
+
+
+# ============================
+# Summarize Results
+# ============================
+summary_pathcoeff <- data.frame(
+  Parameter = c("Sexual Selection", "Remaining Selection", "Total Selection"),
+  Mean      = round(c(mean(sexual_selection), mean(remaining_selection), mean(total_selection)), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_selection, 0.025),
+    quantile(remaining_selection, 0.025),
+    quantile(total_selection, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_selection, 0.975),
+    quantile(remaining_selection, 0.975),
+    quantile(total_selection, 0.975)
+  ), 2)
+)
+
+
+print(summary_pathcoeff)
+
+# Posterior probability > 0
+round(mean(sexual_selection > 0), 3)
+round(mean(remaining_selection > 0), 3)
+round(mean(total_selection > 0), 3)
+
+```
+
+
+## 7.1 Plot Selection gradient on age controlling for M
+```{r}
+female_color <- "violetred"  
+
+mod <- glm(R ~ Z +M , data = fe_sum)
+
+ages_repr<-ggplot()+
+  geom_point(data = fedat, aes (x=age, y= totaloff, color = female_color), size=3, alpha =0.2, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
+  
+  geom_line(data = newdat, aes(x=age,  y = fit, color = female_color, ),position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
+  
+  geom_line(data = newdat, aes(x=age,  y = lwr, color = female_color),position = position_dodge(width = 2),   show.legend = FALSE) +
+ 
+   geom_line(data = newdat, aes(x=age,  y = upr, color = female_color),position = position_dodge(width = 2),    show.legend = FALSE) +
+    ylab("Reproductive success, mean (± 95% Crl)") +
+    xlab("Age (years)") +
+  labs(title = "Females (n = 51)")+
+  scale_x_continuous(
+  name = "Age (years)",
+   limits = c(1, 3), 
+  breaks = c(1, 2, 3),       # positions of ticks
+  labels = c("1", "2", "3 +") # labels for each tick
+)+
+  custom_theme
+
+ages_repr
+
+ggsave("figures/black coucals/ages_fem_I.png", plot = ages_repr, 
+       width = 4, height = 4, dpi = 300)
+
+
+
+
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M , data = fe_sum)
+
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(fe_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(fe_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-1.95, 0.97, length = 100),
+                      M= mean(fe_sum$M))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+
+head(newdat) # Display the first few rows of 'newdat'
+
+### Create the scatterplot for females
+
+age_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+  scale_color_manual(values = c(female_color)) +
+  xlab("Age (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
+  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.50)), linetype = "solid", color = female_color, size = 1.5) +
+  labs(title = "Females (n = 51)") +
+  theme_plots()
+
+age_fem
+
+# Display the combined plot
+print(age_fem)
+age_fem<-ggarrange(age_fem, labels = c("I"))
+
+ggsave("figures/black coucals/age_fem_I.png", plot = age_fem, 
+       width = 3, height = 5, dpi = 300)
+
+```
+
+
+#8. Path coefficients Males (by category)
+```{r}
+# ============================
+# Inspect Data
+# ============================
+head(ma_sum)
+
+ma_sum <- summary_data %>% filter(sex == "male") %>% droplevels()
+
+#re-order factor levels for category
+ma_sum$category <- factor(ma_sum$category, levels=c('3malesENO', '2males'))
+
+
+# ============================
+# Data Pre processing
+# ============================
+ma_sum <- ma_sum %>%
+  filter(!is.na(age)) %>%
+  mutate(
+    age = as.numeric(age),
+    totaloff = as.numeric(mean_totaloff),
+    totalmates = as.numeric(mean_totalmates),
+    age = as.numeric(scale(age)),
+    cat = as.factor(category)
+  )
+
+# Sample size (unique ring_no_labs)
+ma_sum %>% distinct(ring_no_lab) %>% count()  # n = 81
+
+# ============================
+# Assign Variables
+# ============================
+ma_sum <- ma_sum %>%
+  mutate(
+    Z = age,
+    M = totalmates,
+    R = totaloff
+  )
+
+# Trait variance standardized and relative reproductive/mating success
+ma_sum <- ma_sum %>%
+  mutate(
+     Z = (age - mean(age)) / sd(age),
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+
+```
+
+```{r}
+# ============================
+# Path Coefficients
+# ============================
+
+# ---- Mating gradient on Z ----
+#betaMZraw <- summary(glm(M ~ Z*cat))$coefficients["Z", 1]
+mod       <- glm(M ~ Z*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+
+slope_2males <- bsim@coef[, "Z"] +bsim@coef[, "Z:cat2males"]
+# Summaries for the other category
+round(mean(slope_2males), 2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+
+slope_3malesENO <- bsim@coef[, "Z"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)),2)
+round(mean(slope_3malesENO > 0), 3) 
+
+
+```
+
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+#betaRZraw <- summary(glm(R ~ Z*cat + M*cat))$coefficients["Z", 1]
+mod <- glm(R ~ Z * cat + M * cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "Z"] + bsim@coef[, "Z:cat2males"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "Z"] 
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+
+
+```
+
+```{r}
+# ---- Simple Bateman gradient ----
+#betassraw <- summary(glm(R ~ M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ M *cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 10000)
+
+colnames(bsim@coef)
+# Assuming 3malesENO is the reference level
+intercept_3malesENO <- bsim@coef[, "(Intercept)"]
+intercept_2males <- bsim@coef[, "(Intercept)"] + bsim@coef[, "cat2males"]
+
+slope_2males <- bsim@coef[, "M"] + bsim@coef[, "M:cat2males"]
+round(mean(slope_2males),2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
+round(mean(slope_3malesENO > 0), 3) 
+
+
+```
+```{r}
+# ---- Partial Bateman gradient ----
+#betaRMraw <- summary(glm(R ~ Z + M*cat))$coefficients["M", 1]
+mod       <- glm(R ~ Z + M*cat, data = ma_sum)
+bsim      <- sim(mod, n.sims = 1000)
+colnames(bsim@coef)
+
+slope_2males <- bsim@coef[, "M"] + bsim@coef[, "M:cat2males"]
+round(mean(slope_2males), 2)
+round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
+round(mean(slope_2males > 0), 3) 
+
+slope_3malesENO <- bsim@coef[, "M"]
+round(mean(slope_3malesENO),2)
+round(quantile(slope_3malesENO, probs = c(0.025, 0.975)),2)
+round(mean(slope_3malesENO > 0), 3) 
+
+
+```
+
+```{r}
+# ============================
+# Raw Path Coefficient Calculations
+# ============================
+our_model_raw <- c(
+  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
+  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
+  total.selection     = rep(covRZ, n_sim)
+)
+```
+
+```{r}
+# ============================
+# Fit Poisson Models - 
+# ============================
+#betaRMraw <- summary(glm(R ~ Z + M*cat))$coefficients["M", 1]
+#betaMZraw <- summary(glm(M ~ Z*cat ))$coefficients["Z", 1]
+#betaRZraw <- summary(glm(R ~ Z*cat + M*cat ))$coefficients["Z", 1]
+
+#sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
+#remaining_selection <- varZ * betaRZ_sims
+#total_selection     <- sexual_selection + remaining_selection
+
+
+# ============================
+# Simulated Path Coefficients
+# ============================
+
+mod_RM <- glm(R ~ Z + M*cat , data = ma_sum)
+mod_MZ <- glm(M ~ Z*cat, data = ma_sum)
+mod_RZ <- glm(R ~ Z*cat + M*cat, data = ma_sum)
+
+# Simulate posterior samples
+n_sim   <- 1000
+sim_RM  <- sim(mod_RM, n.sims = n_sim)
+sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
+sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
+
+# Category: 3malesENO (reference level)
+betaMZ_3malesENO <- sim_MZ@coef[, "Z"]
+betaRM_3malesENO <- sim_RM@coef[, "M"]
+betaRZ_3malesENO <- sim_RZ@coef[, "Z"]
+
+# Category: 2males (add interaction terms)
+betaMZ_2males <- betaMZ_3malesENO + sim_MZ@coef[, "Z:cat2males"]
+betaRM_2males <- betaRM_3malesENO + sim_RM@coef[, "M:cat2males"]  # if exists
+betaRZ_2males <- betaRZ_3malesENO + sim_RZ@coef[, "Z:cat2males"]
+
+
+varZ <- var(ma_sum$Z, na.rm = TRUE)
+
+# 3malesENO (reference)
+sexual_3malesENO    <- varZ * betaRM_3malesENO * betaMZ_3malesENO
+remaining_3malesENO <- varZ * betaRZ_3malesENO
+total_3malesENO     <- sexual_3malesENO + remaining_3malesENO
+
+# 2males (interaction-adjusted)
+sexual_2males    <- varZ * betaRM_2males * betaMZ_2males
+remaining_2males <- varZ * betaRZ_2males
+total_2males     <- sexual_2males + remaining_2males
+
+summary_pathcoeff <- data.frame(
+  Category  = rep(c("3malesENO", "2males"), each = 3),
+  Parameter = rep(c("Sexual Selection", "Remaining Selection", "Total Selection"), times = 2),
+  Mean      = round(c(
+    mean(sexual_3malesENO), mean(remaining_3malesENO), mean(total_3malesENO),
+    mean(sexual_2males), mean(remaining_2males), mean(total_2males)
+  ), 2),
+  lowerCrl  = round(c(
+    quantile(sexual_3malesENO, 0.025), quantile(remaining_3malesENO, 0.025), quantile(total_3malesENO, 0.025),
+    quantile(sexual_2males, 0.025), quantile(remaining_2males, 0.025), quantile(total_2males, 0.025)
+  ), 2),
+  upperCrl  = round(c(
+    quantile(sexual_3malesENO, 0.975), quantile(remaining_3malesENO, 0.975), quantile(total_3malesENO, 0.975),
+    quantile(sexual_2males, 0.975), quantile(remaining_2males, 0.975), quantile(total_2males, 0.975)
+  ), 2)
+)
+
+print(summary_pathcoeff)
+
+#Calculate posterior probabilities
+posterior_probs <- data.frame(
+  Category  = c("3malesENO", "2males"),
+  Sexual_Selection    = round(c(mean(sexual_3malesENO > 0), mean(sexual_2males > 0)), 3),
+  Remaining_Selection = round(c(mean(remaining_3malesENO > 0), mean(remaining_2males > 0)), 3),
+  Total_Selection     = round(c(mean(total_3malesENO > 0), mean(total_2males > 0)), 3)
+)
+
+print(posterior_probs)
+
+
+
+```
+
+## 8.1 Plot Selection gradient on age controlling for M
+```{r}
+
+##### Plotting Selection on Z (controlling for M) 
+mod <- glm(R ~ Z +M *cat, data = ma_sum)
+
+# Calculate the range of Z' in 'female_morpho'
+range_Z <- range(ma_sum$Z, na.rm = TRUE)
+print(range_Z) 
+
+range_M <- range(ma_sum$M, na.rm = TRUE)
+print(range_M)
+
+# Create a new data frame 'newdat' with Z
+newdat <- expand.grid(Z = seq(-1.17, 1.15, length = 100),
+                      M= mean(ma_sum$M),
+                      cat = levels(ma_sum$category))
+
+
+str(newdat) # Display the structure of the 'newdat' data frame
+
+# Generate the model matrix 'Xmat' based on Z
+Xmat <- model.matrix(~Z + M*cat, data = newdat)
+
+nsim <- 1000
+
+# Simulate data from the model  using 'sim()' function
+bsim <- sim(mod, n.sim = nsim)
+str(bsim)  # Show structure of the simulated data
+
+
+# Create an empty matrix 'fitmat' to store the model fit for each simulation
+fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
+                 
+for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
+
+# Calculate lower and upper quantiles for the model fits
+newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
+
+# Calculate the fitted values using the fixed effects from 'modfb'
+newdat$fit <- (Xmat %*% coef(mod))
+
+# Display the content of 'newdat'
+newdat
+head(newdat) # Display the first few rows of 'newdat'
+
+table(ma_sum$category)
+
+# Or store them:
+n_3malesENO <- sum(ma_sum$cat == "3malesENO")
+n_2males <- sum(ma_sum$cat == "2males")
+
+
+age_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
+  geom_point(aes(color = category), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
+  scale_color_manual(
+    values = c("3malesENO" = "orange", "2males" = "blue"),
+    labels = c(
+      paste0("with (n = ", n_3malesENO, ")"),
+      paste0("without (n = ", n_2males, ")")
+    ),
+    name = "Extra nest offspring" 
+  ) +
+  xlab("Age (variance standardized)") +
+  ylab("Reproductive success (relative to mean)") +
+  geom_line(data = newdat, aes(x = Z, y = lwr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = upr, color = cat), linetype = "solid",show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = fit, color = cat), size = 1.5, ,show.legend = FALSE) +
+  labs(title = "Males (n = 81)") +
+  theme_plots() +
+  theme(
+    legend.position = c(0.98, 0.98),  # top right corner
+    legend.justification = c("right", "top"),
+    legend.background = element_rect(fill = "white", color = "black"),
+    legend.key = element_rect(fill = NA)
+  )+
+  guides(color = guide_legend(
+    override.aes = list(alpha = 1)  # Legend points fully opaque
+  ))
+
+
+age_ma 
+
+print(age_ma)
+age_ma<-ggarrange(age_ma, labels = c("J"))
+
+ggsave("figures/black coucals/age_ma_J.png", plot = age_ma, 
+       width = 3, height = 5, dpi = 300)
+```
+
+
+# Analysis reproductive success and age in black coucals 
+## Model 
+```{r}
+
+fedat<- dataclean %>% 
+  filter(sex=="female")%>% droplevels()
+
+fedat$age <- as.numeric(fedat$age)
+fedat<- fedat %>% 
+  filter(!is.na(age))
+
+#Prepare data ----
+t.poly<- poly(fedat$age,2)
+fedat$age.l<-t.poly[,1] #linear term for age
+fedat$age.q<-t.poly[,2] #quadratic term for age
+
+mod <- lm(totaloff~ age.l +age.q,
+             data = fedat)
+mod
+MuMIn::r.squaredGLMM(mod)
+```
+
+
+```{r}
+#mod <- lm(laying.rate ~ m_morph + mean_age.l + mean_age.q + year,  data = lay)
+
+nsim <- 10000
+bsim <- sim(mod, n.sim=nsim)
+colnames(bsim@coef) <- names(coef(mod))  
+str(bsim)
+round(apply(bsim@coef, 2, quantile, prob=c(0.025,0.5,0.975)),3)
+quantile(bsim@sigma, prob=c(0.025,0.5,0.975))
+mean(coef(bsim)[,1]<0)
+
+range(fedat$age)
+
+newdat <- expand.grid(age= seq(1,3, length=100))
+newdat$age.l <- predict (t.poly, newdat$age)[,1]
+newdat$age.q <- predict (t.poly, newdat$age)[,2]
+
+head(model.matrix(mod))
+Xmat <- model.matrix(~  age.l + age.q, data=newdat)
+head(Xmat)
+
+fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
+for(i in 1:nsim) fitmat[,i] <- Xmat%*%bsim@coef[i,]
+
+newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
+newdat$fit <- (Xmat%*%coef(mod))
+
+```
+
+
+
+##Assessing model assumptions
+
+```{r}
+par(mfrow=c(2,2))
+
+# Scatter plot of smoothed fitted values vs. residuals
+scatter.smooth(fitted(mod), resid(mod))
+abline(h=0, lty=2)
+title("Tukey-Ascombe plot") # Residual vs. fitted plot indicates strong shrinkage
+
+# QQ plot of residuals for normality assessment
+qqnorm(resid(mod), main = "Normal QQ-plot of residuals")
+qqline(resid(mod))
+
+# Scatter plot of smoothed fitted values vs. square root of absolute residuals
+scatter.smooth(fitted(mod), sqrt(abs(resid(mod))))
+title("Residual variance vs. fitted values")
+
+# Scatter plot of fitted values vs. observed 'number_mates' data
+#plot(fitted(mod), social$number_mates, main = "Data vs. fitted values")
+
+#look at the residuals
+
+scatter.smooth(fitted(mod),resid(mod)) #look OK
+```
+
+##Drawing conclusions 
+```{r}
+nsim <- 10000
+bsim <- sim(mod, n.sim=nsim)
+colnames(bsim@coef) <- names(coef(mod))  
+str(bsim)
+round(apply(bsim@coef, 2, quantile, prob=c(0.025,0.5,0.975)),3)
+quantile(bsim@sigma, prob=c(0.025,0.5,0.975))
+mean(coef(bsim)[,1]<0)
+```
+
+```{r}
+#Calculate the quantiles (2.5%, 50%, and 97.5%) for the entire random effect distribution,
+#round(quantile(as.vector(bsim@ranef$random_factor), prob = c(0.025, 0.5, 0.975)),2)
+
+# Proportion of values greater than 0 for random effects
+#sum(as.vector(bsim@ranef$random_factor) > 0) / length(as.vector(bsim@ranef$random_factor))
+
+#sum(bsim@fixef[,1]<(bsim@fixef[,1]+bsim@fixef[,3]))/nsim # p(ß)=0.945
+#sum(bsim@fixef[,1]<(bsim@fixef[,1]+bsim@fixef[,4]))/nsim # p(ß)=0.977
+#sum(bsim@fixef[,1]+bsim@fixef[3]<(bsim@fixef[,1]+bsim@fixef[,4]))/nsim #p(ß) that 2 year-old females have less offspring than 3 year-old females, p(ß)=0.037
+
+#sum(bsim@fixef[,1]+bsim@fixef[2]<(bsim@fixef[,1]+bsim@fixef[,2]+bsim@fixef[,5]))/nsim #p(ß) that 1 year-old males have less offspring than 2 year-old males, p(ß)=0 
+#sum(bsim@fixef[,1]+bsim@fixef[2]<(bsim@fixef[,1]+bsim@fixef[,2]+bsim@fixef[,6]))/nsim #p(ß) that 1 year-old males have less offspring than 3 year-old males, p(ß)=0
+#sum(bsim@fixef[,1]+bsim@fixef[2]+bsim@fixef[,5]<(bsim@fixef[,1]+bsim@fixef[,2]+bsim@fixef[,6]))/nsim #p(ß) that 2 year-old males have less offspring than 3 year-old males, p(ß)=0.032
+
+```
+##Fitting the model 
+```{r}
+range(fedat$age)
+newdat <- data.frame(age = seq(1,3), length=100)
+newdat$age.l <- predict(t.poly, newdat$age)[,1]
+newdat$age.q <- predict(t.poly, newdat$age)[,2]
+
+Xmat <- model.matrix(~ age.l + age.q, data = newdat)
+head(Xmat)
+head(newdat)
+
+fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
+
+for(i in 1:nsim) fitmat[,i] <- Xmat%*%bsim@coef[i,]
+
+newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
+newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
+newdat$fit <- (Xmat%*%coef(mod))
+
+
+```
+## Calculate counts per sex and age
+
+```{r}
+count_data <- dataclean_filtered %>%
+  dplyr::group_by(sex, age) %>%
+  dplyr::summarise(count = n()) %>%
+  ungroup() %>%
+  mutate(y_position = c(6.82, 10.37, 8.64,  6.10, 5.43, 6.23))
+```
+
+## Plotting reproductive success vs ages in black coucals
+```{r}
+female_color <- "violetred"   
+
+count_data <- fedat %>%
+  dplyr::group_by(sex) %>%
+  dplyr::summarise(count = n()) %>%
+  ungroup() 
+count_data
+
+ages_repr<-ggplot()+
+  geom_point(data = fedat, aes (x=age, y= totaloff, color = female_color), size=3, alpha =0.2, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
+  
+  geom_line(data = newdat, aes(x=age,  y = fit, color = female_color, ),position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
+  
+  geom_line(data = newdat, aes(x=age,  y = lwr, color = female_color),position = position_dodge(width = 2),   show.legend = FALSE) +
+ 
+   geom_line(data = newdat, aes(x=age,  y = upr, color = female_color),position = position_dodge(width = 2),    show.legend = FALSE) +
+    ylab("Reproductive success, mean (± 95% Crl)") +
+    xlab("Age (years)") +
+  labs(title = "Females (n = 51)")+
+  scale_x_continuous(
+  name = "Age (years)",
+   limits = c(1, 3), 
+  breaks = c(1, 2, 3),       # positions of ticks
+  labels = c("1", "2", "3 +") # labels for each tick
+)+
+  custom_theme
+
+ages_repr
+
+ggsave("figures/black coucals/ages_fem_I.png", plot = ages_repr, 
+       width = 4, height = 4, dpi = 300)
+
+```
