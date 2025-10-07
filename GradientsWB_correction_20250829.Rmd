@@ -56,7 +56,7 @@ library(gt)
 knitr::opts_knit$set(root.dir = "setwd(getwd())")
 
 # Read the CSV file
-dataclean <- read.csv("Whitebrowedcoucals_gradients.csv")
+dataclean <- read.csv("data/Whitebrowedcoucals_gradients.csv")
 ```
 
 ```{r}
