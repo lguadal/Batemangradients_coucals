@@ -2324,7 +2324,7 @@ summary_males3ENO  <- summarize_slope(slope_3malesENO)
 
 
 summary_males2
-summary_males3
+summary_males3ENO
 
 # summaries for each group (mean, lwr, upr)
 summaries <- data.frame(
