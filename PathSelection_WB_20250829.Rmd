@@ -480,7 +480,7 @@ ggsave("figures/fig3/smi_fem_K.png", plot = smi_fem,
        bg="transparent")
 
 # Save the ggplot object as an RDS file
-saveRDS(smi_fem, file = "cache/smi_fem_K.rds")
+saveRDS(smi_fem, file = "cache/figK.rds")
 
 ```
 
@@ -767,7 +767,7 @@ ggsave("figures/fig3/tarsus_fem_M.png", plot = tarsus_fem,
        bg="transparent")
 
 # Save the ggplot object as an RDS file
-saveRDS(tarsus_fem, file = "cache/tarsus_fem_M.rds")
+saveRDS(tarsus_fem, file = "cache/figM.rds")
 
 ```
 ### 1.3 Female path coefficient (tail length).
@@ -1051,7 +1051,7 @@ ggsave("figures/fig3/tail_fem_O.png", plot = tail_fem,
        bg="transparent")
 
 # Save the ggplot object as an RDS file
-saveRDS(tail_fem, file = "cache/tail_fem_O.rds")
+saveRDS(tail_fem, file = "cache/figO.rds")
 
 ```
 
@@ -1341,7 +1341,7 @@ ggsave("figures/fig3/smb_fem_Q.png", plot = smb_fem,
        bg="transparent")
 
 # Save the ggplot object as an RDS file
-saveRDS(smb_fem, file = "cache/smb_fem_Q.rds")
+saveRDS(smb_fem, file = "cache/figQ.rds")
 
 ```
 
@@ -1474,7 +1474,7 @@ ggsave("figures/fig3/smi_ma_L.png", plot = smi_ma,
        bg="transparent")
 
 # Save the ggplot object as an RDS file
-saveRDS(smi_ma, file = "cache/smi_ma_L.rds")
+saveRDS(smi_ma, file = "cache/figL.rds")
 
 ```
 
@@ -1602,7 +1602,7 @@ ggsave("figures/fig3/tarsus_ma_N.png", plot = tarsus_ma,
        bg="transparent")
 
 # Save the ggplot object as an RDS file
-saveRDS(tarsus_ma, file = "cache/tarsus_ma_N.rds")
+saveRDS(tarsus_ma, file = "cache/figN.rds")
 ```
 
 
@@ -1733,7 +1733,7 @@ ggsave("figures/fig3/tail_ma_P.png", plot = tail_ma,
        bg="transparent")
 
 # Save the ggplot object as an RDS file
-saveRDS(tail_ma, file = "cache/tail_ma_P.rds")
+saveRDS(tail_ma, file = "cache/figP.rds")
 
 ```
 
@@ -1866,7 +1866,7 @@ ggsave("figures/fig3/smb_ma_R.png", plot = smb_ma,
        bg="transparent")
 
 # Save the ggplot object as an RDS file
-saveRDS(smi_ma, file = "cache/smb_ma_R.rds")
+saveRDS(smb_ma, file = "cache/figR.rds")
 
 ```
 
