@@ -47,7 +47,7 @@ The script provides the following estimates for each trait in males and females:
 knitr::opts_knit$set(root.dir = "setwd(getwd())")
 
 # Read the CSV file
-morpho <- read.csv("morpho_BC.csv")
+morpho <- read.csv("data/morpho_BC.csv")
 
 ```
 
@@ -427,6 +427,9 @@ ggsave("figures/fig3/smi_fem_A.png", plot = smi_fem,
        width = 3, height = 4, dpi = 300,
        bg="transparent")
 
+# Save the ggplot object as an RDS file
+saveRDS(smi_fem, file = "cache/figA.rds")
+
 ```
 
 
@@ -696,10 +699,12 @@ tarsus_fem
 print(tarsus_fem)
 tarsus_fem<-ggarrange(tarsus_fem, labels = c("C"))
 
-ggsave("figures/fig3/tarsus_fem_c.png", plot = tarsus_fem, 
+ggsave("figures/fig3/tarsus_fem_C.png", plot = tarsus_fem, 
        width = 3, height = 4, dpi = 300,
        bg="transparent")
 
+# Save the ggplot object as an RDS file
+saveRDS(tarsus_fem, file = "cache/figC.rds")
 ```
 
 
@@ -980,6 +985,9 @@ tail_fem<-ggarrange(tail_fem, labels = c("E"))
 ggsave("figures/fig3/tail_fem_E.png", plot = tail_fem, 
        width = 3, height = 4, dpi = 300,
        bg="transparent")
+
+# Save the ggplot object as an RDS file
+saveRDS(tail_fem, file = "cache/figE.rds")
 
 ```
 
@@ -1268,6 +1276,9 @@ smb_fem<-ggarrange(smb_fem, labels = c("G"))
 ggsave("figures/fig3/smb_fem_G.png", plot = smb_fem, 
        width = 3, height = 4, dpi = 300,
        bg="transparent")
+
+# Save the ggplot object as an RDS file
+saveRDS(smb_fem, file = "cache/figG.rds")
 
 ```
 
@@ -1632,6 +1643,9 @@ smi_ma<-ggarrange(smi_ma, labels = c("B"))
 ggsave("figures/fig3/smi_ma_B.png", plot = smi_ma, 
        width = 3, height = 4, dpi = 300,
        bg="transparent")
+
+# Save the ggplot object as an RDS file
+saveRDS(smi_ma, file = "cache/figB.rds")
 ```
 ### 2.2 Male path coefficient (tarsus length).
 ```{r}
@@ -1990,6 +2004,10 @@ tarsus_ma<-ggarrange(tarsus_ma , labels = c("D"))
 ggsave("figures/fig3/tarsus_ma_D.png", plot = tarsus_ma  , 
        width = 3, height = 4, dpi = 300,
        bg="transparent")
+
+# Save the ggplot object as an RDS file
+saveRDS(tarsus_ma, file = "cache/figD.rds")
+
 ```
 ### 2.3 Male path coefficient (tail length).
 ```{r}
@@ -2348,6 +2366,10 @@ tail_ma<-ggarrange(tail_ma, labels = c("F"))
 ggsave("figures/fig3/tail_ma_F.png", plot = tail_ma , 
        width = 3, height = 4, dpi = 300,
        bg="transparent")
+
+# Save the ggplot object as an RDS file
+saveRDS(tail_ma, file = "cache/figF.rds")
+
 ```
 
 
@@ -2686,6 +2708,12 @@ smb_ma<-ggarrange(smb_ma , labels = c("H"))
 ggsave("figures/fig3/smb_ma_H.png", plot = smb_ma , 
        width = 3, height = 4, dpi = 300,
        bg="transparent")
+
+
+# Save the ggplot object as an RDS file
+saveRDS(smb_ma, file = "cache/figH.rds")
+
+
 ```
 
 
