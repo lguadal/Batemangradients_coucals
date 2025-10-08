@@ -64,6 +64,7 @@ library(rstanarm)  # Bayesian regression: Tools for Bayesian applied regression 
 library(grid)
 library(gt)
 library(tibble)  # for rownames_to_column
+library(webshot2)
 
 ```
 
@@ -756,6 +757,18 @@ Conditional R-squared: It represents the proportion of variance explained by bot
 Calculate variance explained
 Log normal: The log normal transformation involves taking the natural logarithm of the response variable in the GLMM. This transformation is commonly used when the data exhibits skewed or non-normal distribution. 
 ```{r, warning=FALSE}
+# Center 'totalmates' and 'totaloff' within each category
+dataclean <- dataclean %>%
+  group_by(category) %>%
+  mutate(
+    totalmates_c = totalmates - mean(totalmates, na.rm = TRUE),
+    totaloff_c   = totaloff - mean(totaloff, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+
+
+
 mod <- glmer(totaloff ~ 
                 totalmates * category +
                    (1|year) , family="poisson", 
@@ -1182,7 +1195,7 @@ summarize_slope <- function(slope_draws) {
 
 summary_females <- summarize_slope(slope_females)
 summary_males2  <- summarize_slope(slope_2males)
-summary_males3ENO  <- summarize_slope(slope_3males)
+summary_males3ENO  <- summarize_slope(slope_3malesENO)
 
 summary_females
 summary_males2
@@ -2458,310 +2471,14 @@ ggsave("supl/FigS1.png", plot = combinedsupl1 ,  width = 5,height = 8, dpi = 300
 ```
 
 
-# 7. Calculation path coefficient (for age) females 
-````{r}
 
-#1. Path coefficients 
-### 1.1 Female path coefficient (age).
-
-# ============================
-# Data Preprocessing
-# ============================
-
-#We summarise all by identity (=parent), because i have multiple data entries of some males (at least 3) across years
-
-summary_data <- dataclean %>%
-  dplyr::group_by(ring_no_lab, sex, category, age) %>%
-  dplyr::summarise(
-    mean_totaloff = mean(totaloff, na.rm = TRUE),
-    mean_totalmates = mean(totalmates, na.rm = TRUE),
-  ) %>%
-  dplyr::ungroup()
-
-
-# Convert the summarized tibble to a dataframe
-summary_dataframe <- as.data.frame(summary_data)
-
-# Display the structure of the summarized data
-head(summary_data)
-
-# Separate summary data for females and males with categories 
-fe_sum <- summary_data %>% filter(sex != "male") %>% droplevels()
-
-fe_sum <- fe_sum%>%
-  filter(!is.na(age)) %>%
-  mutate(
-    totalmates = mean_totaloff,
-    totaloff = mean_totaloff,
-    age = as.numeric(age),
-    scaled_age = as.numeric(scale(age))
-  )
-
-# ============================
-# Inspect Data
-# ============================
-head(fe_sum)
-
-# Sample size (unique ring_no_labs)
-fe_sum %>% distinct(ring_no_lab) %>% count()  # n = 51
-
-#Prepare data ----
-t.poly<- poly(fe_sum$scaled_age,2)
-fe_sum$age.l<-t.poly[,1] #linear term for age
-fe_sum$age.q<-t.poly[,2] #quadratic term for age
-
-Z.l<-t.poly[,1] #linear term for age
-Z.q<-t.poly[,2] #quadratic term for age
-
-# Trait variance standardized and relative reproductive/mating success
-fe_sum <- fe_sum %>%
-  mutate(
-    Z = (age - mean(age)) / sd(age),
-    M = totalmates / mean(totalmates),
-    R = totaloff / mean(totaloff)
-  )
-Z <- fe_sum$Z
-M <- fe_sum$M
-R <- fe_sum$R
-````
-
-
-```{r}
-
-# ============================
-# Path Coefficients
-# ============================
-
-# ---- Mating gradient on Z ----
-betaMZraw <- summary(glm(M ~ Z.l +Z.q))$coefficients["Z.l", 1]
-mod       <- glm(M ~ Z.l +Z.q, data = fe_sum)
-bsim      <- sim(mod, n.sims = 10000)
-beta_sims <- bsim@coef[, "Z.l"]
-
-round(mean(beta_sims > 0), 3) 
-round(mean(beta_sims),2)
-round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
-```
-
-```{r}
-# ---- Selection gradient on Z controlling for M ----
-betaRZraw <- summary(glm(R ~ Z.l +Z.q+ M))$coefficients["Z.l", 1]
-mod       <- glm(R ~ Z.l +Z.q + M, data = fe_sum)
-bsim      <- sim(mod, n.sims = 10000)
-beta_sims <- bsim@coef[, "Z.l"]
-
-
-round(mean(beta_sims > 0), 3)  # Probability > 0
-round(mean(beta_sims),2)
-round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
-```
-
-```{r}
-# ---- Simple Bateman gradient ----
-betassraw <- summary(glm(R ~ M))$coefficients["M", 1]
-mod       <- glm(R ~ M, data = fe_sum)
-bsim      <- sim(mod, n.sims = 10000)
-beta_sims <- bsim@coef[, "M"]
-
-round(mean(beta_sims > 0), 3)  # Probability > 0
-round(mean(beta_sims),2)
-round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
-```
-
-```{r}
-# ---- Partial Bateman gradient ----
-betaRMraw <- summary(glm(R ~ Z.l +Z.q + M))$coefficients["M", 1]
-mod       <- glm(R ~ Z.l +Z.q + M, data = fe_sum)
-bsim      <- sim(mod, n.sims = 1000)
-beta_sims <- bsim@coef[, "M"]
-
-round(mean(beta_sims > 0), 3)  # Probability > 0
-round(mean(beta_sims),2)
-round(quantile(beta_sims, probs = c(0.025, 0.975)),2)
-```
-```{r}
-# ============================
-# Raw Path Coefficient Calculations
-# ============================
-our_model_raw <- c(
-  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
-  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
-  total.selection     = rep(covRZ, n_sim)
-)
-
-# ============================
-# Fit Poisson Models
-# ============================
-betaRMraw <- summary(glm(R ~ Z + M))$coefficients["M", 1]
-betaMZraw <- summary(glm(M ~ Z ))$coefficients["Z", 1]
-betaRZraw <- summary(glm(R ~ Z + M ))$coefficients["Z", 1]
-
-mod_RM <- glm(R ~ Z + M, data = fe_sum)
-mod_MZ <- glm(M ~ Z, data = fe_sum)
-mod_RZ <- glm(R ~ Z + M, data = fe_sum)
-
-# ============================
-# Posterior Simulation
-# ============================
-n_sim   <- 1000
-sim_RM  <- sim(mod_RM, n.sims = n_sim)
-sim_MZ  <- sim(mod_MZ,  n.sims = n_sim)
-sim_RZ  <- sim(mod_RZ,  n.sims = n_sim)
-
-betaRM_sims <- sim_RM@coef[, "M"]
-betaMZ_sims <- sim_MZ@coef[, "Z"]
-betaRZ_sims <- sim_RZ@coef[, "Z"]
-
-varZ  <- var(Z, na.rm = TRUE)
-covRZ <- cov(Z, R, use = "complete.obs")
-
-# ============================
-# Simulated Path Coefficients
-# ============================
-sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
-remaining_selection <- varZ * betaRZ_sims
-total_selection     <- sexual_selection + remaining_selection
-
-
-# ============================
-# Summarize Results
-# ============================
-summary_pathcoeff <- data.frame(
-  Parameter = c("Sexual Selection", "Remaining Selection", "Total Selection"),
-  Mean      = round(c(mean(sexual_selection), mean(remaining_selection), mean(total_selection)), 2),
-  lowerCrl  = round(c(
-    quantile(sexual_selection, 0.025),
-    quantile(remaining_selection, 0.025),
-    quantile(total_selection, 0.025)
-  ), 2),
-  upperCrl  = round(c(
-    quantile(sexual_selection, 0.975),
-    quantile(remaining_selection, 0.975),
-    quantile(total_selection, 0.975)
-  ), 2)
-)
-
-
-print(summary_pathcoeff)
-
-# Posterior probability > 0
-round(mean(sexual_selection > 0), 3)
-round(mean(remaining_selection > 0), 3)
-round(mean(total_selection > 0), 3)
-
-```
-
-
-## 7.1 Plot Selection gradient on age controlling for M
-```{r}
-female_color <- "violetred"  
-
-mod <- glm(R ~ Z +M , data = fe_sum)
-
-ages_repr<-ggplot()+
-  geom_point(data = fedat, aes (x=age, y= totaloff, color = female_color), size=3, alpha =0.2, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
-  
-  geom_line(data = newdat, aes(x=age,  y = fit, color = female_color, ),position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
-  
-  geom_line(data = newdat, aes(x=age,  y = lwr, color = female_color),position = position_dodge(width = 2),   show.legend = FALSE) +
- 
-   geom_line(data = newdat, aes(x=age,  y = upr, color = female_color),position = position_dodge(width = 2),    show.legend = FALSE) +
-    ylab("Reproductive success, mean (± 95% Crl)") +
-    xlab("Age (years)") +
-  labs(title = "Females (n = 51)")+
-  scale_x_continuous(
-  name = "Age (years)",
-   limits = c(1, 3), 
-  breaks = c(1, 2, 3),       # positions of ticks
-  labels = c("1", "2", "3 +") # labels for each tick
-)+
-  custom_theme
-
-ages_repr
-
-ggsave("figures/black coucals/ages_fem_I.png", plot = ages_repr, 
-       width = 4, height = 4, dpi = 300)
-
-
-
-
-##### Plotting Selection on Z (controlling for M) 
-mod <- glm(R ~ Z +M , data = fe_sum)
-
-
-# Calculate the range of Z' in 'female_morpho'
-range_Z <- range(fe_sum$Z, na.rm = TRUE)
-print(range_Z) 
-
-range_M <- range(fe_sum$M, na.rm = TRUE)
-print(range_M)
-
-# Create a new data frame 'newdat' with Z
-newdat <- expand.grid(Z = seq(-1.95, 0.97, length = 100),
-                      M= mean(fe_sum$M))
-
-
-str(newdat) # Display the structure of the 'newdat' data frame
-
-# Generate the model matrix 'Xmat' based on Z
-Xmat <- model.matrix(~Z + M, data = newdat)
-
-nsim <- 1000
-
-# Simulate data from the model  using 'sim()' function
-bsim <- sim(mod, n.sim = nsim)
-str(bsim)  # Show structure of the simulated data
-
-
-# Create an empty matrix 'fitmat' to store the model fit for each simulation
-fitmat <- matrix(ncol = nsim, nrow = nrow(newdat))
-                 
-for (i in 1:nsim) fitmat[, i] <- (Xmat %*% bsim@coef[i,])
-
-# Calculate lower and upper quantiles for the model fits
-newdat$lwr <- apply(fitmat, 1, quantile, prob = 0.025)
-newdat$upr <- apply(fitmat, 1, quantile, prob = 0.975)
-
-# Calculate the fitted values using the fixed effects from 'modfb'
-newdat$fit <- (Xmat %*% coef(mod))
-
-# Display the content of 'newdat'
-
-head(newdat) # Display the first few rows of 'newdat'
-
-### Create the scatterplot for females
-
-age_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
-  geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
-  scale_color_manual(values = c(female_color)) +
-  xlab("Age (variance standardized)") +
-  ylab("Reproductive success (relative to mean)") +
-  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
-  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
-  geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.50)), linetype = "solid", color = female_color, size = 1.5) +
-  labs(title = "Females (n = 51)") +
-  theme_plots()
-
-age_fem
-
-# Display the combined plot
-print(age_fem)
-age_fem<-ggarrange(age_fem, labels = c("I"))
-
-ggsave("figures/black coucals/age_fem_I.png", plot = age_fem, 
-       width = 3, height = 5, dpi = 300)
-
-```
-
-
-#8. Path coefficients Males (by category)
+# Table 3. Path coefficients Males (by category)
 ```{r}
 # ============================
 # Inspect Data
 # ============================
-head(ma_sum)
 
-ma_sum <- summary_data %>% filter(sex == "male") %>% droplevels()
+ma_sum <- dataclean %>% filter(sex == "male") %>% droplevels()
 
 #re-order factor levels for category
 ma_sum$category <- factor(ma_sum$category, levels=c('3malesENO', '2males'))
@@ -2774,8 +2491,6 @@ ma_sum <- ma_sum %>%
   filter(!is.na(age)) %>%
   mutate(
     age = as.numeric(age),
-    totaloff = as.numeric(mean_totaloff),
-    totalmates = as.numeric(mean_totalmates),
     age = as.numeric(scale(age)),
     cat = as.factor(category)
   )
@@ -2786,13 +2501,6 @@ ma_sum %>% distinct(ring_no_lab) %>% count()  # n = 81
 # ============================
 # Assign Variables
 # ============================
-ma_sum <- ma_sum %>%
-  mutate(
-    Z = age,
-    M = totalmates,
-    R = totaloff
-  )
-
 # Trait variance standardized and relative reproductive/mating success
 ma_sum <- ma_sum %>%
   mutate(
@@ -2800,6 +2508,12 @@ ma_sum <- ma_sum %>%
     M = totalmates / mean(totalmates),
     R = totaloff / mean(totaloff)
   )
+
+Z<-ma_sum$Z
+
+M<-ma_sum$M
+R<-ma_sum$R
+
 
 ```
 
@@ -2826,24 +2540,47 @@ round(quantile(slope_3malesENO, probs = c(0.025, 0.975)),2)
 round(mean(slope_3malesENO > 0), 3) 
 
 
+# output 
+(beta_summary1<- data.frame(
+  Component = "Z",
+  Parameter = "Mating gradient on Z ",
+  Without_Mean = round(mean(slope_2males), 2),
+  Without_lowerCrl  = round(quantile(slope_2males, 0.025), 2),
+  Without_upperCrl = round(quantile(slope_2males, 0.975), 2),
+  Without_P_prob  = format(round(mean(slope_2males > 0), 3), nsmall = 3),
+  With_Mean = round(mean(slope_3malesENO), 2),
+  With_lowerCrl  = round(quantile(slope_3malesENO, 0.025), 2),
+  With_upperCrl  = round(quantile(slope_3malesENO, 0.975), 2),
+  With_P_prob = format(round(mean(slope_3malesENO > 0), 0.999), 3,
+                       nsmall = 3)
+))
+
 ```
 
 ```{r}
-# ---- Selection gradient on Z controlling for M ----
-#betaRZraw <- summary(glm(R ~ Z*cat + M*cat))$coefficients["Z", 1]
-mod <- glm(R ~ Z * cat + M * cat, data = ma_sum)
+# ---- Mating gradient on Z ----
+#betaMZraw <- summary(glm(M ~ Z*cat))$coefficients["Z", 1]
+mod       <- glm(M ~ Z*cat, data = ma_sum)
 bsim      <- sim(mod, n.sims = 10000)
-colnames(bsim@coef)
 
-slope_2males <- bsim@coef[, "Z"] + bsim@coef[, "Z:cat2males"]
-round(mean(slope_2males),2)
-round(quantile(slope_2males, probs = c(0.025, 0.975)), 2)
-round(mean(slope_2males > 0), 3) 
+slope_2males <- bsim@coef[, "Z"] +bsim@coef[, "Z:cat2males"]
+slope_3malesENO <- bsim@coef[, "Z"]
 
-slope_3malesENO <- bsim@coef[, "Z"] 
-round(mean(slope_3malesENO),2)
-round(quantile(slope_3malesENO, probs = c(0.025, 0.975)), 2)
-round(mean(slope_3malesENO > 0), 3) 
+
+# output 
+(beta_summary1<- data.frame(
+  Component = "Z",
+  Parameter = "Mating gradient on Z ",
+  Without_Mean = round(mean(slope_2males), 2),
+  Without_lowerCrl  = round(quantile(slope_2males, 0.025), 2),
+  Without_upperCrl = round(quantile(slope_2males, 0.975), 2),
+  Without_P_prob  = format(round(mean(slope_2males > 0), 3), nsmall = 3),
+  With_Mean = round(mean(slope_3malesENO), 2),
+  With_lowerCrl  = round(quantile(slope_3malesENO, 0.025), 2),
+  With_upperCrl  = round(quantile(slope_3malesENO, 0.975), 2),
+  With_P_prob = format(round(mean(slope_3malesENO > 0), 0.999), 3,
+                       nsmall = 3)
+))
 
 
 ```
@@ -2891,16 +2628,6 @@ round(mean(slope_3malesENO > 0), 3)
 
 ```
 
-```{r}
-# ============================
-# Raw Path Coefficient Calculations
-# ============================
-our_model_raw <- c(
-  sexual.selection    = var(Z, na.rm = TRUE) * betaRMraw * betaMZraw,
-  remaining.selection = var(Z, na.rm = TRUE) * betaRZraw,
-  total.selection     = rep(covRZ, n_sim)
-)
-```
 
 ```{r}
 # ============================
@@ -2985,7 +2712,7 @@ print(posterior_probs)
 
 ```
 
-## 8.1 Plot Selection gradient on age controlling for M
+## 1.3.5 Plot Selection gradient on age controlling for M
 ```{r}
 
 ##### Plotting Selection on Z (controlling for M) 
@@ -3074,11 +2801,14 @@ age_ma<-ggarrange(age_ma, labels = c("J"))
 
 ggsave("figures/black coucals/age_ma_J.png", plot = age_ma, 
        width = 3, height = 5, dpi = 300)
+
+# Save the ggplot object as an RDS file
+saveRDS(age_ma, file = "cache/figJ.rds")
 ```
 
 
-# Analysis reproductive success and age in black coucals 
-## Model 
+#Table 2. Path coefficients females
+### 1.5.1 Female path coefficient (age)
 ```{r}
 
 fedat<- dataclean %>% 
@@ -3088,20 +2818,315 @@ fedat$age <- as.numeric(fedat$age)
 fedat<- fedat %>% 
   filter(!is.na(age))
 
-#Prepare data ----
 t.poly<- poly(fedat$age,2)
 fedat$age.l<-t.poly[,1] #linear term for age
 fedat$age.q<-t.poly[,2] #quadratic term for age
-
-mod <- lm(totaloff~ age.l +age.q,
-             data = fedat)
-mod
-MuMIn::r.squaredGLMM(mod)
 ```
+
+````{r}
+#Path selection
+# ============================
+# Assign Variables
+# ============================
+
+# Trait variance standardized and relative reproductive/mating success
+fedat <- fedat %>%
+  mutate(
+    M = totalmates / mean(totalmates),
+    R = totaloff / mean(totaloff)
+  )
+````
 
 
 ```{r}
-#mod <- lm(laying.rate ~ m_morph + mean_age.l + mean_age.q + year,  data = lay)
+# ============================
+# Set variables
+# ============================
+
+fedat$Z.l <- fedat$age.l
+Z.l <- fedat$age.l
+
+fedat$Z.q <- fedat$age.q
+Z.q <- fedat$age.q
+
+M <- fedat$M
+R <- fedat$R
+
+
+```
+
+````{r}
+# ============================
+# Path Coefficients
+# ============================
+
+# ---- Mating gradient on Z ----
+betaMZraw <- summary(glm(M ~ Z.l +Z.q))$coefficients["Z.q", 1]
+mod       <- lm(M ~ Z.l +Z.q, data = fedat)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z.q"]
+
+#Meaning: a meaningful negative quadratic coefficient means that the relationship between age and mating success is concave down: mating success peaks at intermediate agges and declines for both younger and older individuals. ie. mid aged individuals achieve the highest mating success, selection is favouring intermediate ages
+
+
+(beta_summary1 <- data.frame(
+  Component = "Quadratic (Z.q)",
+  Parameter = "Selection on Z controlling for M",
+  Mean      = round(mean(beta_sims), 2),#strongly negative quadratic effect
+  lowerCrl  = round(as.numeric(quantile(beta_sims, 0.025)), 2),  # remove 2.5% label
+  upperCrl  = round(as.numeric(quantile(beta_sims, 0.975)), 2),#entire interval is below zero - the negative curvature is statistically supported 
+  P_prob    = format(
+                 round(pmin(mean(beta_sims > 0), 0.999), 3),  # cap at 0.999
+                 nsmall = 3
+               )#only 1.1% of simulated beta values are positive, so there is a 99% prob that the effect is negative (quadratic effect)
+))
+
+
+````
+
+```{r}
+# ---- Selection gradient on Z controlling for M ----
+betaRZraw <- summary(glm(R ~ Z.l +Z.q + M))$coefficients["Z.q", 1]
+mod       <- lm(R ~ Z.l +Z.q + M , data = fedat)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "Z.q"]
+
+# Create data frame of output
+(beta_summary2 <- data.frame(
+  Component = "Quadratic (Z.q)",
+  Parameter = "Selection gradient on Z controlling for M",
+  Mean      = round(mean(beta_sims), 2),
+  lowerCrl  = round(as.numeric(quantile(beta_sims, 0.025)), 2),  # remove 2.5% label
+  upperCrl  = round(as.numeric(quantile(beta_sims, 0.975)), 2),
+  P_prob    = format(
+                 round(pmin(mean(beta_sims > 0), 0.999), 3),  # cap at 0.999
+                 nsmall = 3
+               )
+))
+```
+
+````{r}
+# ---- Simple Bateman gradient ----
+betassraw <- summary(glm(R ~ M))$coefficients["M", 1]
+mod       <- lm(R ~ M, data = fedat)
+bsim      <- sim(mod, n.sims = 10000)
+beta_sims <- bsim@coef[, "M"]
+
+# Create data frame of output
+(beta_summary3 <- data.frame(
+  Component = "-",
+  Parameter = "Simple Bateman gradient",
+  Mean      = round(mean(beta_sims), 2),
+  lowerCrl  = round(as.numeric(quantile(beta_sims, 0.025)), 2),  # remove 2.5% label
+  upperCrl  = round(as.numeric(quantile(beta_sims, 0.975)), 2),
+  P_prob    = format(
+                 round(pmin(mean(beta_sims > 0), 0.999), 3),  # cap at 0.999
+                 nsmall = 3
+               )
+)
+)
+````
+
+````{r}
+# ---- Partial Bateman gradient ----
+betaRMraw <- summary(glm(R ~Z.l +Z.q + M))$coefficients["Z.q", 1]
+mod       <- lm(R ~ Z.l +Z.q + M , data = fedat)
+bsim      <- sim(mod, n.sims = 1000)
+beta_sims <- bsim@coef[, "M"]
+
+# Create data frame of output
+(beta_summary4 <- data.frame(
+  Component = "-",
+  Parameter = "Partial Bateman gradient",
+  Mean      = round(mean(beta_sims), 2),
+  lowerCrl  = round(as.numeric(quantile(beta_sims, 0.025)), 2),  # remove 2.5% label
+  upperCrl  = round(as.numeric(quantile(beta_sims, 0.975)), 2),
+  P_prob    = format(
+                 round(pmin(mean(beta_sims > 0), 0.999), 3),  # cap at 0.999
+                 nsmall = 3
+               )
+)
+)
+````
+
+```{r}
+# ============================================================
+# Fit models for path analysis with Z.l and Z.q
+# ============================================================
+
+# Base (raw) coefficients
+betaRMraw  <- summary(glm(R ~ Z.l + Z.q + M, data = fedat))$coefficients["M", 1]
+
+# For mating gradient (M ~ Z)
+betaMZlraw <- summary(glm(M ~ Z.l + Z.q, data = fedat))$coefficients["Z.l", 1]
+betaMZqraw <- summary(glm(M ~ Z.l + Z.q, data = fedat))$coefficients["Z.q", 1]
+
+# For selection gradient (R ~ Z + M)
+betaRZlraw <- summary(glm(R ~ Z.l + Z.q + M, data = fedat))$coefficients["Z.l", 1]
+betaRZqraw <- summary(glm(R ~ Z.l + Z.q + M, data = fedat))$coefficients["Z.q", 1]
+
+
+# ============================================================
+# Fit linear models for posterior simulation
+# ============================================================
+mod_RM <- lm(R ~ Z.l + Z.q + M, data = fedat)
+mod_MZ <- lm(M ~ Z.l + Z.q, data = fedat)
+mod_RZ <- lm(R ~ Z.l + Z.q + M, data = fedat)
+
+# ============================================================
+# Posterior simulations
+# ============================================================
+n_sim  <- 1000
+sim_RM <- sim(mod_RM, n.sims = n_sim)
+sim_MZ <- sim(mod_MZ, n.sims = n_sim)
+sim_RZ <- sim(mod_RZ, n.sims = n_sim)
+
+# Extract coefficients
+betaRM_sims <- sim_RM@coef[, "M"]
+
+betaMZl_sims <- sim_MZ@coef[, "Z.l"]
+betaMZq_sims <- sim_MZ@coef[, "Z.q"]
+
+betaRZl_sims <- sim_RZ@coef[, "Z.l"]
+betaRZq_sims <- sim_RZ@coef[, "Z.q"]
+
+# ============================================================
+# Variances and covariances for each trait component
+# ============================================================
+varZl  <- var(fedat$Z.l, na.rm = TRUE)
+varZq  <- var(fedat$Z.q, na.rm = TRUE)
+
+covRZl <- cov(fedat$R, fedat$Z.l, use = "complete.obs")
+covRZq <- cov(fedat$R, fedat$Z.q, use = "complete.obs")
+
+# ============================================================
+# Simulated Path Coefficients
+# ============================================================
+
+# ----- Linear component -----
+sexual_selection_l    <- varZl * betaRM_sims * betaMZl_sims
+remaining_selection_l <- varZl * betaRZl_sims
+total_selection_l     <- sexual_selection_l + remaining_selection_l
+
+# ----- Quadratic component -----
+sexual_selection_q    <- varZq * betaRM_sims * betaMZq_sims
+remaining_selection_q <- varZq * betaRZq_sims
+total_selection_q     <- sexual_selection_q + remaining_selection_q
+
+# ============================================================
+# Summarize Results
+# ============================================================
+
+summary_pathcoeff <- data.frame(
+  Component = rep(c("Linear (Z.l)", "Quadratic (Z.q)"), each = 3),
+  Parameter = rep(c("Sexual Selection", "Remaining Selection", "Total Selection"), 2),
+  Mean = round(c(
+    mean(sexual_selection_l), mean(remaining_selection_l), mean(total_selection_l),
+    mean(sexual_selection_q), mean(remaining_selection_q), mean(total_selection_q)
+  ), 2),
+  lowerCrl = round(c(
+    round(quantile(sexual_selection_l, 0.025),2),
+    quantile(remaining_selection_l, 0.025),
+    quantile(total_selection_l, 0.025),
+    quantile(sexual_selection_q, 0.025),
+    quantile(remaining_selection_q, 0.025),
+    quantile(total_selection_q, 0.025)
+  ), 2),
+  upperCrl = round(c(
+    quantile(sexual_selection_l, 0.975),
+    quantile(remaining_selection_l, 0.975),
+    quantile(total_selection_l, 0.975),
+    quantile(sexual_selection_q, 0.975),
+    quantile(remaining_selection_q, 0.975),
+    quantile(total_selection_q, 0.975)
+  ), 2),
+  P_prob = round(c( # Posterior probability
+    mean(sexual_selection_l > 0),
+    mean(remaining_selection_l> 0),
+    mean(total_selection_l > 0),
+    mean(sexual_selection_q > 0),
+    mean(remaining_selection_q > 0),
+    mean(total_selection_q > 0)
+  ), 3)
+)
+  
+
+print(summary_pathcoeff)
+
+
+
+```
+
+### Save table 
+
+```{r}
+
+# Number of observations used in the model
+n_obs <- nobs(mod)
+
+# Print table
+(tab<-combined_summary %>%
+  gt() %>%
+  tab_header(
+    title = paste0(
+      "Table 3e. Estimates of selection on female black coucal age (Z), including sexual (xZ), remaining (rZ), and total (sZ) selection following the framework of Henshaw et al. (2018). Sample size  (n = ",  n_obs, ")."
+    )
+  ) %>%
+  # Left-align the title
+  tab_style(
+    style = cell_text(align = "left"),
+    locations = cells_title(groups = "title")
+  ) %>%
+  # Bold Parameter for rows from summary_pathcoeff
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = "Parameter",
+      rows = source == "summary_pathcoeff"
+    )
+  ) %>%
+  # Bold numeric columns where P_prob == 0.999
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = c("Mean", "lowerCrl", "upperCrl", "P_prob"),
+      rows = P_prob == 0.999 | (P_prob >= 0.001 & P_prob <= 0.010) | (lowerCrl > 0 | upperCrl < 0)
+    )
+  ) %>%
+  # Left-align all columns
+  cols_align(
+    align = "left",
+    columns = everything()
+  ) %>%
+  # Rename columns
+  cols_label(
+    Mean = "β",
+    lowerCrl = "(25% Crl)",
+    upperCrl = "(97% Crl)",
+    P_prob = "P(β > 0)"
+  ) %>%
+  # Times New Roman, 12
+  tab_options(
+    table.font.names = "Times New Roman",
+    table.font.size = 12
+  ) %>%
+  cols_hide(columns = "source"))
+
+#Print table 
+
+gtsave(tab, "tables/Table3e_age_BC.html")
+
+# Convert HTML to PDF
+webshot("tables/Table3e_age_BC.html", "tables/Table3e_age_BC.pdf", zoom = 2)
+
+```
+
+#### 1.5.1 Plot Selection gradient on age 
+```{r}
+##### Plotting Selection on Z (controlling for M) 
+
+mod <- glm(totaloff ~ age.l + age.q , data = fedat)
+
 
 nsim <- 10000
 bsim <- sim(mod, n.sim=nsim)
@@ -3118,7 +3143,7 @@ newdat$age.l <- predict (t.poly, newdat$age)[,1]
 newdat$age.q <- predict (t.poly, newdat$age)[,2]
 
 head(model.matrix(mod))
-Xmat <- model.matrix(~  age.l + age.q, data=newdat)
+Xmat <- model.matrix(~  age.l + age.q , data=newdat)
 head(Xmat)
 
 fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
@@ -3128,104 +3153,30 @@ newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
 newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
 newdat$fit <- (Xmat%*%coef(mod))
 
-```
-
-
-
-##Assessing model assumptions
-
-```{r}
-par(mfrow=c(2,2))
-
-# Scatter plot of smoothed fitted values vs. residuals
-scatter.smooth(fitted(mod), resid(mod))
-abline(h=0, lty=2)
-title("Tukey-Ascombe plot") # Residual vs. fitted plot indicates strong shrinkage
-
-# QQ plot of residuals for normality assessment
-qqnorm(resid(mod), main = "Normal QQ-plot of residuals")
-qqline(resid(mod))
-
-# Scatter plot of smoothed fitted values vs. square root of absolute residuals
-scatter.smooth(fitted(mod), sqrt(abs(resid(mod))))
-title("Residual variance vs. fitted values")
-
-# Scatter plot of fitted values vs. observed 'number_mates' data
-#plot(fitted(mod), social$number_mates, main = "Data vs. fitted values")
-
-#look at the residuals
-
-scatter.smooth(fitted(mod),resid(mod)) #look OK
-```
-
-##Drawing conclusions 
-```{r}
-nsim <- 10000
-bsim <- sim(mod, n.sim=nsim)
-colnames(bsim@coef) <- names(coef(mod))  
-str(bsim)
-round(apply(bsim@coef, 2, quantile, prob=c(0.025,0.5,0.975)),3)
-quantile(bsim@sigma, prob=c(0.025,0.5,0.975))
-mean(coef(bsim)[,1]<0)
-```
-
-
-##Fitting the model 
-```{r}
-range(fedat$age)
-newdat <- data.frame(age = seq(1,3), length=100)
-newdat$age.l <- predict(t.poly, newdat$age)[,1]
-newdat$age.q <- predict(t.poly, newdat$age)[,2]
-
-Xmat <- model.matrix(~ age.l + age.q, data = newdat)
-head(Xmat)
-head(newdat)
-
-fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
-
-for(i in 1:nsim) fitmat[,i] <- Xmat%*%bsim@coef[i,]
-
-newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
-newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
-newdat$fit <- (Xmat%*%coef(mod))
-
-
-```
-## Calculate counts per sex and age
-
-
-## Plotting reproductive success vs ages in black coucals
-```{r}
-female_color <- "violetred"  
-
-count_data <- fedat %>%
-  dplyr::group_by(sex) %>%
-  dplyr::summarise(count = n()) %>%
-  ungroup() 
-count_data
-
-ages_repr<-ggplot()+
-  geom_point(data = fedat, aes (x=age, y= totaloff, color = "violetred"), size=3, alpha =0.2, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
+ages_repr_fe<-ggplot()+
+  geom_point(data = fedat, aes (x=age, y= totaloff),  color = "violetred", size=3, alpha =0.3, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
   
-  geom_line(data = newdat, aes(x=age,  y = fit, color = "violetred" ),position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
+  geom_line(data = newdat, aes(x=age,  y = fit ),  color = "violetred", position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
   
-  geom_line(data = newdat, aes(x=age,  y = lwr, color = "violetred"),position = position_dodge(width = 2),   show.legend = FALSE) +
+  geom_line(data = newdat, aes(x=age,  y = lwr),color = "violetred", position = position_dodge(width = 2),   show.legend = FALSE) +
  
-   geom_line(data = newdat, aes(x=age,  y = upr, color = "violetred"),position = position_dodge(width = 2),    show.legend = FALSE) +
+   geom_line(data = newdat, aes(x=age,  y = upr), color = "violetred" ,position = position_dodge(width = 2),    show.legend = FALSE) +
     ylab("Reproductive success, mean (± 95% Crl)") +
     xlab("Age (years)") +
   labs(title = "Females (n = 51)")+
-  scale_x_continuous(
-  name = "Age (years)",
-   limits = c(1, 3), 
-  breaks = c(1, 2, 3),       # positions of ticks
-  labels = c("1", "2", "3 +") # labels for each tick
-)+
-  custom_theme
+ scale_x_continuous(
+    limits = c(1, 3),
+    breaks = c(1, 2, 3),
+    labels = c("1", "2", "3 +")
+  ) +
+  theme_plots()
 
-ages_repr
+ages_repr_fe
 
-ggsave("figures/black coucals/ages_fem_I.png", plot = ages_repr, 
+ggsave("figures/fig3/ages_fem_I.png", plot = ages_repr_fe, 
        width = 4, height = 4, dpi = 300)
+
+# Save the ggplot object as an RDS file
+saveRDS(ages_repr_fe, file = "cache/figI.rds")
 
 ```
