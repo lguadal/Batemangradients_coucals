@@ -53,7 +53,7 @@ library(gt)
 ```{r}
 
 # Set the working directory
-knitr::opts_knit$set(root.dir = "setwd(getwd())")
+#knitr::opts_knit$set(root.dir = "setwd(getwd())")
 
 # Read the CSV file
 dataclean <- read.csv("data/Whitebrowedcoucals_gradients.csv")
