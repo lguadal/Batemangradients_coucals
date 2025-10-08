@@ -861,8 +861,8 @@ prop_gt0 <- round(apply(fixef(bsim), 2, function(x) mean(x > 0)), 3)
 result_table <- as.data.frame(t(qtab)) %>%
   mutate(`P(β > 0)` = prop_gt0) %>%
   rownames_to_column(var = "Effect") %>%
-  mutate(`β (95% Crl)` = paste0(`50%`, " (", "2.5%", ", ", "97.5%`, ")") %>%
-  select(Effect, "β (95% Crl)", "P(β > 0)")
+  mutate(`P(β > 0)` = prop_gt0,
+         `β (95% Crl)` = paste0(`50%`, " (", `2.5%`, ", ", `97.5%`, ")"))
 
 # --- 4. Rename fixed effects ---
 result_table$Effect <- recode(result_table$Effect,
@@ -3169,22 +3169,7 @@ quantile(bsim@sigma, prob=c(0.025,0.5,0.975))
 mean(coef(bsim)[,1]<0)
 ```
 
-```{r}
-#Calculate the quantiles (2.5%, 50%, and 97.5%) for the entire random effect distribution,
-#round(quantile(as.vector(bsim@ranef$random_factor), prob = c(0.025, 0.5, 0.975)),2)
 
-# Proportion of values greater than 0 for random effects
-#sum(as.vector(bsim@ranef$random_factor) > 0) / length(as.vector(bsim@ranef$random_factor))
-
-#sum(bsim@fixef[,1]<(bsim@fixef[,1]+bsim@fixef[,3]))/nsim # p(ß)=0.945
-#sum(bsim@fixef[,1]<(bsim@fixef[,1]+bsim@fixef[,4]))/nsim # p(ß)=0.977
-#sum(bsim@fixef[,1]+bsim@fixef[3]<(bsim@fixef[,1]+bsim@fixef[,4]))/nsim #p(ß) that 2 year-old females have less offspring than 3 year-old females, p(ß)=0.037
-
-#sum(bsim@fixef[,1]+bsim@fixef[2]<(bsim@fixef[,1]+bsim@fixef[,2]+bsim@fixef[,5]))/nsim #p(ß) that 1 year-old males have less offspring than 2 year-old males, p(ß)=0 
-#sum(bsim@fixef[,1]+bsim@fixef[2]<(bsim@fixef[,1]+bsim@fixef[,2]+bsim@fixef[,6]))/nsim #p(ß) that 1 year-old males have less offspring than 3 year-old males, p(ß)=0
-#sum(bsim@fixef[,1]+bsim@fixef[2]+bsim@fixef[,5]<(bsim@fixef[,1]+bsim@fixef[,2]+bsim@fixef[,6]))/nsim #p(ß) that 2 year-old males have less offspring than 3 year-old males, p(ß)=0.032
-
-```
 ##Fitting the model 
 ```{r}
 range(fedat$age)
@@ -3208,17 +3193,10 @@ newdat$fit <- (Xmat%*%coef(mod))
 ```
 ## Calculate counts per sex and age
 
-```{r}
-count_data <- dataclean_filtered %>%
-  dplyr::group_by(sex, age) %>%
-  dplyr::summarise(count = n()) %>%
-  ungroup() %>%
-  mutate(y_position = c(6.82, 10.37, 8.64,  6.10, 5.43, 6.23))
-```
 
 ## Plotting reproductive success vs ages in black coucals
 ```{r}
-female_color <- "violetred"   
+female_color <- "violetred"  
 
 count_data <- fedat %>%
   dplyr::group_by(sex) %>%
@@ -3227,13 +3205,13 @@ count_data <- fedat %>%
 count_data
 
 ages_repr<-ggplot()+
-  geom_point(data = fedat, aes (x=age, y= totaloff, color = female_color), size=3, alpha =0.2, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
+  geom_point(data = fedat, aes (x=age, y= totaloff, color = "violetred"), size=3, alpha =0.2, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
   
-  geom_line(data = newdat, aes(x=age,  y = fit, color = female_color, ),position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
+  geom_line(data = newdat, aes(x=age,  y = fit, color = "violetred" ),position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
   
-  geom_line(data = newdat, aes(x=age,  y = lwr, color = female_color),position = position_dodge(width = 2),   show.legend = FALSE) +
+  geom_line(data = newdat, aes(x=age,  y = lwr, color = "violetred"),position = position_dodge(width = 2),   show.legend = FALSE) +
  
-   geom_line(data = newdat, aes(x=age,  y = upr, color = female_color),position = position_dodge(width = 2),    show.legend = FALSE) +
+   geom_line(data = newdat, aes(x=age,  y = upr, color = "violetred"),position = position_dodge(width = 2),    show.legend = FALSE) +
     ylab("Reproductive success, mean (± 95% Crl)") +
     xlab("Age (years)") +
   labs(title = "Females (n = 51)")+
