@@ -1,7 +1,7 @@
 ---
 title: "White-browedcoucals gradients"
 author: "null"
-date: "2023-11-08"
+date: "2025-10-08"
 output:
   html_document:
     toc: yes
@@ -11,6 +11,7 @@ output:
     toc: yes
     toc_depth: 3
     theme: journal
+    github_document: default
 ---
 
 ```{r setup, include=FALSE}
