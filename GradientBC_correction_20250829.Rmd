@@ -1938,7 +1938,7 @@ Standard_gradients <- grid.arrange(
 print(Standard_gradients)
 
 ````
-## Combining figures of the Bateman gradient
+## Combining figures of the Bateman gradient-----
 
 ```{r}
 # Panel A
