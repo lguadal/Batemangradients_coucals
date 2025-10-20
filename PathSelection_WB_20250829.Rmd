@@ -462,7 +462,7 @@ ggplot(fe_sum, aes(x = M, y = R)) + geom_point(aes(color = female_color), shape 
 smi_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
   geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
   scale_color_manual(values = c(female_color)) +
-  xlab("Body mass (variance standardized)") +
+  xlab("Body mass (variance stand.)") +
   ylab("Reproductive success (relative to mean)") +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
@@ -749,7 +749,7 @@ length(unique(fe_sum$ring_no[!is.na(fe_sum$Z) & !is.na(fe_sum$R)]))
 tarsus_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
   geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
   scale_color_manual(values = c(female_color)) +
-  xlab("Rigth tarsus length (variance standardized)") +
+  xlab("Rigth tarsus length (variance stand.)") +
   ylab("Reproductive success (relative to mean)") +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
@@ -1033,7 +1033,7 @@ length(unique(fe_sum$ring_no[!is.na(fe_sum$Z) & !is.na(fe_sum$R)]))
 tail_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
   geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
   scale_color_manual(values = c(female_color)) +
-  xlab("Tail length (variance standardized)") +
+  xlab("Tail length (variance stand.)") +
   ylab("Reproductive success (relative to mean)") +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
@@ -1323,7 +1323,7 @@ length(unique(fe_sum$ring_no[!is.na(fe_sum$Z) & !is.na(fe_sum$R)]))
 smb_fem <- ggplot(fe_sum, aes(x = Z, y = R)) +
   geom_point(aes(color = female_color), shape = 17, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
   scale_color_manual(values = c(female_color)) +
-  xlab("Scaled mass index (variance standardized)") +
+  xlab("Scaled mass index (variance stand.)") +
   ylab("Reproductive success (relative to mean)") +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = female_color) +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = female_color) +
@@ -1456,7 +1456,7 @@ ggplot(ma_sum, aes(x = Z, y = R)) + geom_point(aes(color = male_color), shape = 
 smi_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
   geom_point(aes(color = male_color), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
   scale_color_manual(values = c(male_color)) +
-  xlab("Body mass (variance standardized)") +
+  xlab("Body mass (variance stand.)") +
   ylab("Reproductive success (relative to mean)") +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = male_color) +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = male_color) +
@@ -1584,7 +1584,7 @@ length(unique(ma_sum$ring_no[!is.na(ma_sum$Z) & !is.na(ma_sum$R)]))
 tarsus_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
   geom_point(aes(color = male_color), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
   scale_color_manual(values = c(male_color)) +
-  xlab("Rigth tarsus length (variance standardized)") +
+  xlab("Rigth tarsus length (variance stand.)") +
   ylab("Reproductive success (relative to mean)") +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = male_color) +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = male_color) +
@@ -1715,7 +1715,7 @@ length(unique(ma_sum$ring_no[!is.na(ma_sum$Z) & !is.na(ma_sum$R)]))
 tail_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
   geom_point(aes(color = male_color), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
   scale_color_manual(values = c(male_color)) +
-  xlab("Tail length (variance standardized)") +
+  xlab("Tail length (variance stand.)") +
   ylab("Reproductive success (relative to mean)") +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = male_color) +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = male_color) +
@@ -1848,7 +1848,7 @@ ggplot(ma_sum, aes(x = Z, y = R)) + geom_point(aes(color = male_color), shape = 
 smb_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
   geom_point(aes(color = male_color), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
   scale_color_manual(values = c(male_color)) +
-  xlab("Scaled mass index (variance standardized)") +
+  xlab("Scaled mass index (variance stand.)") +
   ylab("Reproductive success (relative to mean)") +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.025)), linetype = "solid", color = male_color) +
   geom_line(data = newdat, aes(x = Z, y = apply(fitmat, 1, quantile, prob = 0.975)), linetype = "solid", color = male_color) +
