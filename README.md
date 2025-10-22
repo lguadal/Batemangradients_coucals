@@ -81,7 +81,7 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 - For each provided data set, we include details on the variables presented. Each row represents an individual bird.
 - Standardized values of mating and reproductive success are generated directly through the analysis in the Rmarkdown scripts.
 
-[**`data`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/data)
+[**`data`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/data) CSV files associated to the statistical analyses in the study.
 
 ###### Black coucals 
 -   [`blackcoucal_gradients.csv`](https://github.com/lguadal/Batemangradients_coucals/blob/main/data/blackcoucal_gradients.csv)
@@ -90,7 +90,6 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 ###### White-browed coucals
 -   [`whitebrowedcoucal_gradients.csv`](https://github.com/lguadal/Batemangradients_coucals/blob/main/data/whitebrowedcoucal_gradients.csv)
 -   [`data_morpho_WB.csv`](https://github.com/lguadal/Batemangradients_coucals/blob/main/data/data_morpho_WB.csv)
-
 
 
 ---
@@ -112,7 +111,7 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 ---
 
 ---
-#### data_morpho_BC.csv
+#### [`data_morpho_BC.csv`](https://github.com/lguadal/Batemangradients_coucals/blob/main/data/data_morpho_BC.csv)
 
 | Column name           | Type    | Units / Scale                        | Description |
 |----------------------|---------|--------------------------------------|-------------|
@@ -133,7 +132,7 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 
 ---
 ---
-#### whitebrowedcoucal_gradients.csv
+#### [`whitebrowedcoucal_gradients.csv`](https://github.com/lguadal/Batemangradients_coucals/blob/main/data/whitebrowedcoucal_gradients.csv)
 
 | Column name       | Type   | Units / Scale                        | Description |
 |------------------|--------|--------------------------------------|-------------|
@@ -146,7 +145,7 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 
 ---
 ---
-#### data_morpho_WB.csv
+#### [`data_morpho_WB.csv`](https://github.com/lguadal/Batemangradients_coucals/blob/main/data/data_morpho_WB.csv)
 
 | Column name           | Type    | Units / Scale                        | Description |
 |----------------------|---------|--------------------------------------|-------------|
