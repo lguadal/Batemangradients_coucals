@@ -23,7 +23,7 @@ Bateman Gradients in Black coucals (*Centropus grillii*) and White-browed coucal
 Our study is based on data collected over **13 breeding** seasons
 for White-browed coucals and **15 breeding seasons** for Black coucals. 
 
-| Black Coucal | White-browed Coucals |
+| Female Black Coucal | White-browed Coucals |
 |--------------|-------------------|
 | ![](images/Blackcoucal.jpeg)| ![](images/WBcoucals.jpeg) |
 
@@ -38,18 +38,15 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 2) Tables were created using the R package [gt v.0.2.2](https://cran.r-project.org/web/packages/gt/index.html).
 3) Figures were created using  R package [ggplot2 v.3.3.3](https://cran.r-project.org/web/packages/ggplot2/index.html).
 
-###### Black coucals 
+##### Black coucals 
 - [`GradientsBC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsBC.Rmd)
-    R Markdown script containing the statistical analyses. Outputs of estimates of 
-    1) bateman gradients, 2) differences between sex classes, 3) opportunities for selection and sexual selection and
-    4) Path Selection analyses for age. 
+    R Markdown script containing the statistical analyses. Outputs of estimates of 1) bateman gradients, 2) differences between sex classes, 3) opportunities for selection and sexual selection and 4) Path Selection analyses for age. 
 - [`PathsSelection_BC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_BC.Rmd)
     R Markdown script containing the path selection analyses of morphological traits. 
 
-###### White-browed coucals
+##### White-browed coucals
 - [`GradientsWB.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsWB.Rmd)
-    R Markdown script containing the statistical analyses. Outputs of estimates of 
-    1) bateman gradients, 2) differences between sex classes and  3) opportunities for selection and sexual selection.
+    R Markdown script containing the statistical analyses. Outputs of estimates of 1) bateman gradients, 2) differences between sex classes and  3) opportunities for selection and sexual selection.
 - [`PathsSelection_BC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_WB.Rmd)
     R Markdown script containing the path selection analyses of morphological traits.
 
@@ -78,10 +75,9 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 -   [`Table1_WB_I.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_WB_OppSel.pdf) Estimates Opportunity for Selection in White-browed coucals.
 -   [`Table1_WB_Is.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_WB_OppSexSel.pdf) Estimates Opportunity for Sexual Selection in White-browed coucals.
 
-[**`tables/estimatediff/`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/tables/estimatediff) outputs of estimated differences in slopes and opportunities for selection in both coucal species.
+[**`tables/estimatediff/`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/tables/estimatediff) outputs of estimated differences in slopes and selection opportunities in both coucal species.
 
 ### Datasets description: 
-
 - For each provided data set, we include details on the variables presented. Each row the associated information of an individual bird.
 - Standardized values of mating and reproductive success are generated directly through the analysis in the Rmarkdown scripts.
 
@@ -172,7 +168,6 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 
 You are welcome to view and download the materials in this repository.  
 However:
-
 - **Do not** use, modify, or share any code or data without **written permission** by Wolfgang Goymann (<a href= "mailto:w.goymann@bi.mpg.de">w.goymann[at]bi.mpg.de</a>) 
 
 © 2025 Guadalupe Lopez-Nava – All rights reserved.
