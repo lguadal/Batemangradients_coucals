@@ -21,51 +21,58 @@ Wolfgang (<a href= "mailto:wgoymann@bi.mpg.de">w.goymann[at]bi.mpg.de</a>)
 
 In this repository you can find all the data and code needed to
 reproduce our study on Bateman Gradients in Black coucals (*Centropus grillii*) and White-browed coucals (*Centropus superciliosus*) inhabiting the Usangu wetlands of Tanzania.
-Our study is based on data collected over **13 breeding** seasons for White browed coucals and **15 breeding seasons** for Black coucals). 
+Our study is based on data collected over **13 breeding** seasons for White-browed coucals and **15 breeding seasons** for Black coucals). 
 
-<p float="left">
-  <img src="images/Blackcoucal.jpeg" width="300" style="margin-right: 10px;">
-  <img src="images/WBcoucals.jpeg" width="300">
-</p>
+| Black Coucal | White-browed Coucal |
+|--------------|-------------------|
+| ![](images/Blackcoucal.jpeg){width=300} | ![](images/WBcoucals.jpeg){width=300} |
+
 
 
 #### Repository Contents
 
-- [`Rscript_PaperContaminantsMito_Shearwaters_20251001.R`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/Rscript_PaperContaminantsMito_Shearwaters_20251001.R)
-    R script containing statistical analyses. All analyses are referenced according to their number in the manuscript
-- [`ContaminantsMitoShearwater.Rproj`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/ContaminantsMitoShearwater.Rproj)
+- [`BatemangradientsCoucals.Rproj`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/ContaminantsMitoShearwater.Rproj)
     RStudio project to run and reproduce results
 
-[**`figures`**](https://github.com/lguadal/ContaminantsMitoShearwaters/tree/main/figures) all of which were created using the R package [ggplot2 v.3.3.3](https://cran.r-project.org/web/packages/ggplot2/index.html).
+## Black coucals 
+- [`GradientsBC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsBC.Rmd)
+    R Markdown script containing statistical analyses of Bateman gradients and differences between slopes, Opportunity for Selection estimates and Path Selection analyses for age. All analyses are referenced according to their number in the manuscript
+- [`PathsSelection_BC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_BC.Rmd)
+    R Markdown containing statistical analyses of path selection analyses of morphological traits. All analyses are referenced according to their number in the manuscript
 
--   [`Fig1`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/figures/Fig1.png) 
--   [`Fig2`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/figures/Fig2.png) 
--   [`Fig3`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/figures/Fig3.png) 
--   [`Fig4`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/figures/Fig4.png) 
--   [`Fig5`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/figures/Fig5.png) 
--   [`Fig6`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/figures/Fig5.png)
+## White-browed coucals
+- [`GradientsWB.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsWB.Rmd)
+    R Markdown script containing statistical analyses of Bateman gradients and differences between slopes, Opportunity for Selection estimates and Path Selection analyses for age. All analyses are referenced according to their number in the manuscript
+- [`PathsSelection_BC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_WB.Rmd)
+    R Markdown containing statistical analyses of path selection analyses of morphological traits. All analyses are referenced according to their number in the manuscript
 
-[**`images`**](https://github.com/lguadal/ContaminantsMitoShearwaters/tree/main/images) folder containing the graphic in the Readme and figure 1c in the manuscript
--   [`shearwateradult.jpeg`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/images/shearwateradult.jpeg) 
+[**`figures`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/figures) all of which were created using the R package [ggplot2 v.3.3.3](https://cran.r-project.org/web/packages/ggplot2/index.html).
 
-[**`suppinfo`**](https://github.com/lguadal/ContaminantsMitoShearwaters/tree/main/suppinfo) folder including figures and tables of supplementary information: tables created using the R package [gt v.0.2.2](https://cran.r-project.org/web/packages/gt/index.html) and figures using  R package [ggplot2 v.3.3.3](https://cran.r-project.org/web/packages/ggplot2/index.html)..
+-   [`/black coucals/ Fig1`](https://github.com/lguadal/Batemangradients_coucals/blob/main/figures/black%20coucals/Fig1_gradients_BC.png) 
+-   [`/whitebrowed coucals/Fig2`](https://github.com/lguadal/Batemangradients_coucals/blob/main/figures/whitebrowed%20coucals/Fig2_gradients_WC.png) 
+-   [`Fig3`](https://github.com/lguadal/Batemangradients_coucals/tree/main/figures/fig3) All figures associated to the panel saved individually.
 
--   [`FigS1.png`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/FigS1.png) 
--   [`FigS2.png`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/FigS2.png) 
--   [`FigS3.png`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/FigS3.png) 
--   [`TabS1.pdf`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/TabS1.pdf)
--   [`TabS2_PFDS.pdf`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/TabS2_PFDS.pdf) 
--   [`TabS2_PFDODA.pdf`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/TabS2_PFDODA.pdf) 
--   [`TabS2_PFHPS.pdf`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/TabS2_PFHPS.pdf) 
--   [`TabS2_PFOA.pdf`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/TabS2_PFOA.pdf) 
--   [`TabS2_PFHXS.pdf`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/TabS2_PFHXS.pdf) 
--   [`TabS2_PFDA.pdf`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/TabS2_PFDA.pdf) 
--   [`TabS2_PFNA.pdf`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/TabS2_PFNA.pdf)
--   [`TabS2_PFOS.pdf`](https://github.com/lguadal/ContaminantsMitoShearwaters/blob/main/suppinfo/TabS2_PFOS.pdf) 
+[**`images`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/images) folder containing the graphic in the Readme file
+-   [`WBcoucals.jpeg`](https://github.com/lguadal/Batemangradients_coucals/blob/main/images/WBcoucals.jpeg) 
+-   [`Blackcoucal.jpeg`](https://github.com/lguadal/Batemangradients_coucals/blob/main/images/Blackcoucal.jpeg)
+
+[**`supl`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/supl) folder including figures and tables of supplementary information: tables created using the R package [gt v.0.2.2](https://cran.r-project.org/web/packages/gt/index.html) and figures using  R package [ggplot2 v.3.3.3](https://cran.r-project.org/web/packages/ggplot2/index.html).
+
+-   [`FigS1.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/FigS1.png) 
+-   [`TabS1a.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/TableS1a_BC.pdf)
+-   [`TabS1b_females.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/TableS1b_females_BC.pdf) 
+-   [`TabS1b_males.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/TableS1b_males_BC.pdf)
+-   [`TabS2a.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/TableS2a_WBC.pdf)
+-   [`TabS2b.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/TableS2b_WBC.pdf)
+
+[**`tables`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/tables) tables from Results section (referenced by table number in manuscript), all of which were created using the R package [gt v.0.2.2](https://cran.r-project.org/web/packages/gt/index.html).
+-   [`Table1_BC_I.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_BC_OppSel.pdf) Estimates Opportunity for Selection in Black coucals.
+-   [`Table1_BC_Is.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_BC_OppSexSel.pdf) Estimates Opportunity for Sexual Selection in Black coucals.
+-   [`Table1_WB_I.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_WB_OppSel.pdf) Estimates Opportunity for Selection in White-browed coucals.
+-   [`Table1_WB_Is.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_WB_OppSexSel.pdf) Estimates Opportunity for Sexual Selection in White-browed coucals.
 
 
-[**`tables`**](https://github.com/lguadal/ContaminantsMitoShearwaters/tree/main/tables) tables from Results section (referenced by table number in manuscript), all of which were created using the R package [gt v.0.2.2](https://cran.r-project.org/web/packages/gt/index.html).
-*Note*: All tables (including those from the supplementary information) only show the frequentist results. For credible intervals resulting from models using Bayesian statistics refer to code section of each specified model in the R script.
+-   [`TabS2b.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/TableS2b_WBC.pdf)
 
 
 [**`data`**](https://github.com/lguadal/ContaminantsMitoShearwaters/tree/main/data)
