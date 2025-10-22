@@ -1,34 +1,30 @@
 # Reproducible datasets and code for:
 
-## Pollutant Exposure Shapes Mitochondrial Bioenergetics in a Wild Seabird *Calonectris diomedea*
+## Sex-role-reversal and the Bateman gradient in coucals – females benefit from mating with multiple partners
 
 
-### Guadalupe Lopez-Nava<sup>1</sup>\*, Lucie Michel<sup>2</sup>\*, Giacomo Dell’Omo<sup>3</sup>, Petra Quillfeldt<sup>2</sup>,  Paco Bustamante<sup>4</sup>, and Stefania Casagrande<sup>1</sup>
+### Guadalupe Lopez-Nava<sup>1</sup><sup>2</sup>, Ignas Safari<sup>3</sup>, Clemens Küpper<sup>4</sup>, Wolfgang Goymann<sup>1</sup><sup>2</sup><sup>5</sup>\*
+\* corresponding author
 
-\* joint first-authors
+1)  *Max Planck Institute for Biological Intelligence (MPI-BI), Department Behavioural Neurobiology, Eberhard-Gwinner-Str., 82319 Seewiesen, Germany*
+2)  *Ludwig Maximilians University Munich, Department Biology II, Großhaderner Str. 2, 82152 Martinsried, Germany *
+3)  *Department of Biology, College of Natural and Mathematical Sciences, University of Dodoma, P.O. Box 338, Dodoma, Tanzania *
+4)  *Max Planck Institute for Biological Intelligence (MPI-BI), Behavioural Genetics and Evolutionary Ecology, Eberhard-Gwinner-Str., 82319 Seewiesen, Germany*
+5)  *Coucal Project, P.O. Box 26, Chimala, Tanzania*
 
-1)  *Evolutionary Physiology Research Group, Max Planck Institute for Biological Intelligence, Eberhard-Gwinner-Str., 82319, Seewiesen, Germany*
-2)  *Animal Ecology and Systematics, Justus-Liebig University, Giessen, Germany*
-3)  *Ornis italica, Rome, Italy*
-4)  *Littoral Environnement et Sociétés (LIENSs), UMR 7266 CNRS-Université de la Rochelle, 2 rue Olympe de Gouges, 17000 La Rochelle, France*
-
-
-✉ For correspondence regarding the code, statistical analyses or the study system , please
-contact: Guadalupe
-(<a href= "mailto:lopez-nava.guadalupe@bi.mpg.de">lopez-nava.guadalupe[at]bi.mpg.de</a>)
+✉ For correspondence regarding the code, statistical analyses,please
+contact: Guadalupe (<a href= "mailto:lopez-nava.guadalupe@bi.mpg.de">lopez-nava.guadalupe[at]bi.mpg.de</a>)
 
 ✉ For correspondence regarding the data collection and study system please
 contact: 
-Stefania (mitochondrial metabolism)
-(<a href= "mailto:stefania.casagrande@bi.mpg.de">stefania.casagrande[at]bi.mpg.de</a>) or
-Lucie (contaminants and stable isotopes)
-(<a href= "mailto:lucie.michel282@gmail.com">lucie.michel282[at]gmail.com</a>)
+Wolfgang (<a href= "mailto:wgoymann@bi.mpg.de">w.goymann[at]bi.mpg.de</a>)
 
 In this repository you can find all the data and code needed to
-reproduce our study on contaminants and mitochondria 
-bioenergetic metabolism in Scopoli's shearwater (*Calonectris diomedea*) sampled over 2 years in Linosa Island located in the Sicilian Channel (IT)
+reproduce our study on Bateman Gradients in Black coucals (*Centropus grillii*) and White-browed coucals (*Centropus superciliosus*) inhabiting the Usangu wetlands of Tanzania.
+Our study is based on data collected over **13 breeding** seasons for White browed coucals and **15 breeding seasons** for Black coucals). 
 
-![](images/shearwateradult.jpeg)
+![](images/Blackcoucal.jpeg)
+![](images/WBcoucals.jpeg)
 
 #### Repository Contents
 
