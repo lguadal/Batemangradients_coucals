@@ -2,54 +2,52 @@
 
 ## Sex-role-reversal and the Bateman gradient in coucals – females benefit from mating with multiple partners
 
+### Guadalupe Lopez-Nava<sup>1,2</sup>, Ignas Safari<sup>3</sup>, Clemens Küpper<sup>4</sup>, Wolfgang Goymann<sup>1,2,5</sup>*
+* corresponding author
 
-### Guadalupe Lopez-Nava<sup>1</sup>,<sup>2</sup>, Ignas Safari<sup>3</sup>, Clemens Küpper<sup>4</sup>, Wolfgang Goymann<sup>1</sup>,<sup>2</sup>,<sup>5</sup>\*
-\* corresponding author
-
-1)  *Max Planck Institute for Biological Intelligence (MPI-BI), Department Behavioural Neurobiology, Eberhard-Gwinner-Str., 82319 Seewiesen, Germany*
-2)  *Ludwig Maximilians University Munich, Department Biology II, Großhaderner Str. 2, 82152 Martinsried, Germany*
-3)  *Department of Biology, College of Natural and Mathematical Sciences, University of Dodoma, P.O. Box 338, Dodoma, Tanzania*
-4)  *Max Planck Institute for Biological Intelligence (MPI-BI), Behavioural Genetics and Evolutionary Ecology, Eberhard-Gwinner-Str., 82319 Seewiesen, Germany*
-5)  *Coucal Project, P.O. Box 26, Chimala, Tanzania*
+1)  *Max Planck Institute for Biological Intelligence (MPI-BI), Department Behavioural Neurobiology, Eberhard-Gwinner-Str., 82319 Seewiesen, Germany.*
+2)  *Ludwig Maximilians University Munich, Department Biology II, Großhaderner Str. 2, 82152 Martinsried, Germany.*
+3)  *Department of Biology, College of Natural and Mathematical Sciences, University of Dodoma, P.O. Box 338, Dodoma, Tanzania.*
+4)  *Max Planck Institute for Biological Intelligence (MPI-BI), Behavioural Genetics and Evolutionary Ecology, Eberhard-Gwinner-Str., 82319 Seewiesen, Germany.*
+5)  *Coucal Project, P.O. Box 26, Chimala, Tanzania.*
 
 ✉ For correspondence regarding the code and statistical analyses, please
-contact: 
-Guadalupe (<a href= "mailto:lopez-nava.guadalupe@bi.mpg.de">lopez-nava.guadalupe[at]bi.mpg.de</a>)
+contact: Guadalupe (<a href= "mailto:lopez-nava.guadalupe@bi.mpg.de">lopez-nava.guadalupe[at]bi.mpg.de</a>)
 
 ✉ For correspondence regarding the data collection and study systems please
-contact: 
-Wolfgang (<a href= "mailto:wgoymann@bi.mpg.de">w.goymann[at]bi.mpg.de</a>)
+contact: Wolfgang (<a href= "mailto:wgoymann@bi.mpg.de">w.goymann[at]bi.mpg.de</a>)
 
-In this repository you can find all the data and code needed to
-reproduce our study on Bateman Gradients in Black coucals (*Centropus grillii*) and White-browed coucals (*Centropus superciliosus*) inhabiting the Usangu wetlands of Tanzania.
-Our study is based on data collected over **13 breeding** seasons for White-browed coucals and **15 breeding seasons** for Black coucals. 
+In this repository you can find all the data and code needed to reproduce our study on 
+Bateman Gradients in Black coucals (*Centropus grillii*) and White-browed coucals
+(*Centropus superciliosus*) inhabiting the Usangu wetlands of Tanzania.
+Our study is based on data collected over **13 breeding** seasons
+for White-browed coucals and **15 breeding seasons** for Black coucals. 
 
 | Black Coucal | White-browed Coucals |
 |--------------|-------------------|
 | ![](images/Blackcoucal.jpeg)| ![](images/WBcoucals.jpeg) |
 
 
-
 #### Repository Contents
 
 - [`BatemangradientsCoucals.Rproj`](https://github.com/lguadal/Batemangradients_coucals/blob/main/BatemangradientsCoucals.Rproj)
-    RStudio project to run and reproduce results
+    RStudio project to run and reproduce results.
 
 *Notes*: 
 1) All analyses in Rmarkdown scripts are referenced according to their number in the manuscript.
-2) Tables created using the R package [gt v.0.2.2](https://cran.r-project.org/web/packages/gt/index.html)
-3) Figures using  R package [ggplot2 v.3.3.3](https://cran.r-project.org/web/packages/ggplot2/index.html).
+2) Tables created using the R package [gt v.0.2.2](https://cran.r-project.org/web/packages/gt/index.html).
+3) Figures created using  R package [ggplot2 v.3.3.3](https://cran.r-project.org/web/packages/ggplot2/index.html).
 
 ###### Black coucals 
 - [`GradientsBC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsBC.Rmd)
     R Markdown script containing the statistical analyses of Bateman gradients estimates and differences between sex classes, Opportunity for Selection estimates and Path Selection analyses for age. 
 - [`PathsSelection_BC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_BC.Rmd)
-    R Markdown containing statistical analyses of path selection analyses of morphological traits. 
+    R Markdown script containing the path selection analyses of morphological traits. 
 
 ###### White-browed coucals
-- [`GradientsWB.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsWB.Rmd) R Markdown script containing the statistical analyses of Bateman gradients estimates and differences between sexes and Opportunity for Selection estimates. 
+- [`GradientsWB.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsWB.Rmd) R Markdown script containing the statistical analyses of Bateman gradients estimates, differences between sexes and Opportunity for Selection estimates. 
 - [`PathsSelection_BC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_WB.Rmd)
-    R Markdown containing statistical analyses of path selection analyses of morphological traits. 
+    R Markdown containing the statistical analyses of path selection analyses of morphological traits. 
 
 [**`figures`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/figures) 
 
@@ -61,7 +59,7 @@ Our study is based on data collected over **13 breeding** seasons for White-brow
 -   [`WBcoucals.jpeg`](https://github.com/lguadal/Batemangradients_coucals/blob/main/images/WBcoucals.jpeg) 
 -   [`Blackcoucal.jpeg`](https://github.com/lguadal/Batemangradients_coucals/blob/main/images/Blackcoucal.jpeg)
 
-[**`supl`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/supl) folder containing figures and tables of the supplementary information: 
+[**`supl`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/supl) folder containing figures and tables of the supplementary information.
 
 -   [`FigS1.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/FigS1.png) 
 -   [`TabS1a.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/TableS1a_BC.pdf)
@@ -96,7 +94,7 @@ Our study is based on data collected over **13 breeding** seasons for White-brow
 
 ---
 #### blackcoucal_gradients.csv
-<div style="font-size: 12px;">
+
 | Column name       | Type   | Units / Scale                        | Description |
 |------------------|--------|--------------------------------------|-------------|
 | `ring_no_lab`     | factor | categorical (299 levels)             | An anonymized identifier for each individual bird obtained from sibship analyses. |
@@ -114,7 +112,7 @@ Our study is based on data collected over **13 breeding** seasons for White-brow
 
 ---
 #### data_morpho_BC.csv
-<div style="font-size: 12px;">
+
 | Column name           | Type    | Units / Scale                        | Description |
 |----------------------|---------|--------------------------------------|-------------|
 | `ring_no`             | factor  | categorical (163 levels)             | Ring number identifying each bird. |
@@ -135,7 +133,7 @@ Our study is based on data collected over **13 breeding** seasons for White-brow
 ---
 ---
 #### whitebrowedcoucal_gradients.csv
-<div style="font-size: 12px;">
+
 | Column name       | Type   | Units / Scale                        | Description |
 |------------------|--------|--------------------------------------|-------------|
 | `lab_id`          | factor | categorical (162 levels)             | Laboratory ID for each individual bird. |
@@ -148,7 +146,7 @@ Our study is based on data collected over **13 breeding** seasons for White-brow
 ---
 ---
 #### data_morpho_WB.csv
-<div style="font-size: 12px;">
+
 | Column name           | Type    | Units / Scale                        | Description |
 |----------------------|---------|--------------------------------------|-------------|
 | `ring_no`             | factor  | categorical (96 levels)              | Ring number identifying each individual bird. |
@@ -165,7 +163,6 @@ Our study is based on data collected over **13 breeding** seasons for White-brow
 | `tail_body`           | integer | mm                                    | Tail-to-body length measurement. |
 
 ---
-
 
 #### Usage Policy
 
