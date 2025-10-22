@@ -23,8 +23,11 @@ In this repository you can find all the data and code needed to
 reproduce our study on Bateman Gradients in Black coucals (*Centropus grillii*) and White-browed coucals (*Centropus superciliosus*) inhabiting the Usangu wetlands of Tanzania.
 Our study is based on data collected over **13 breeding** seasons for White browed coucals and **15 breeding seasons** for Black coucals). 
 
-![](images/Blackcoucal.jpeg)
-![](images/WBcoucals.jpeg)
+<p float="left">
+  <img src="images/Blackcoucal.jpeg" width="300" style="margin-right: 10px;">
+  <img src="images/WBcoucals.jpeg" width="300">
+</p>
+
 
 #### Repository Contents
 
