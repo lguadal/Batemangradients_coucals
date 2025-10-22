@@ -63,14 +63,15 @@ dataclean <- read.csv("data/Whitebrowedcoucals_gradients.csv")
 ```{r}
 #Set a theme for plots 
 # Define a custom theme
+
 custom_theme <- theme_bw() +
   theme(text = element_text(family = "Arial"),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10),
-        axis.text = element_text(size = 13),
-        axis.title = element_text(size = 13),
-        title = element_text(size=11),
-        plot.title = element_text(size = 16, face = "bold"),  # bold title
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 9),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12),
+        title = element_text(size=10),
+        plot.title = element_text(size = 15, face = "bold"),  # bold title
         legend.key.size = unit(0.4, "cm") , 
         axis.title.y = element_markdown())
 ```
@@ -479,7 +480,7 @@ estimates_bateman <- ggplot(dens_df, aes(x = x, y = y, color = group)) +
                data = modes, linetype = "solid", size =1) +
   # reference at 0
   geom_vline(xintercept = 0, linetype = "dashed") +
-  labs(x = "Posterior distribution of absolute slope", y = "Density") +
+  labs(x = "Posterior distrib. of absolute slope", y = "Density") +
    scale_color_manual(values = c("violetred")) +
   scale_fill_manual(values = c("violetred")) +
   scale_x_continuous(breaks = seq(floor(min(dens_df$x)),
@@ -897,7 +898,7 @@ estimates_bateman_stand <- ggplot(dens_df, aes(x = x, y = y, color = group)) +
                data = modes, linetype = "solid", size =1) +
   # reference at 0
   geom_vline(xintercept = 0, linetype = "dashed") +
-  labs(x = "Posterior distribution of stand. slope", y = "Density") +
+  labs(x = "Posterior distrib. of stand. slope", y = "Density") +
    scale_color_manual(values = c("violetred")) +
   scale_fill_manual(values = c("violetred")) +
   scale_x_continuous(breaks = seq(floor(min(dens_df$x)),
@@ -1011,7 +1012,7 @@ panelA <- arrangeGrob(textGrob("A", x = 0, y = 1, just = c("left","top"), gp = g
                       panelA, ncol = 1, heights = c(0.1, 1))
 
 # Panel B
-panelB <- arrangeGrob(females_st, nullGrob(), males_st, nrow = 1, widths = c(1.5, 0.2, 1))
+panelB <- arrangeGrob(females_st, nullGrob(), males_st, nrow = 1, widths = c(1, 0.2, 1))
 panelB <- arrangeGrob(textGrob("B", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
                       panelB, ncol = 1, heights = c(0.1, 1))
 
@@ -1049,8 +1050,15 @@ multi_panel <- grid.arrange(leftpanel, nullGrob(), rightpanel, ncol = 3, widths 
 #ggsave("figures/whitebrowed coucals/leftFig2_gradients_WB.png", plot = leftpanel ,  width = 8, height = 6, dpi = 300)
 #ggsave("figures/whitebrowed coucals/rightFig2_gradients_WB.png", plot = rightpanel ,  width = 8, height = 6, dpi = 300)
 
-ggsave("figures/whitebrowed coucals/Fig2_gradients_WC.png", plot = multi_panel ,  width = 21, height = 10, dpi = 300)
-ggsave("figures/whitebrowed coucals/Fig2_gradients_WC.png", plot = multi_panel ,  width = 15, height = 7, dpi = 300)
+#ggsave("figures/whitebrowed coucals/Fig2_gradients_WC.png", plot = multi_panel ,  width = 21, height = 10, dpi = 300)
+
+
+ggsave("figures/whitebrowed coucals/Fig2_gradients_WC_alternative.png", plot = multi_panel ,
+  width = 22,    # ↓ narrower overall
+  height = 10,   # you can adjust this too for balance
+  dpi = 300,
+   limitsize = FALSE,
+  bg = "white")
 
 
 ````
@@ -1275,6 +1283,23 @@ summarize_diff <- function(diff_samples, label) {
 
 # Summarize all comparisons
 summarize_diff(diff_female_vs_male, "Females vs Males")
+
+# Capture the printed output from all three comparisons
+output <- c(
+  capture.output(summarize_diff(diff_female_vs_male, "Females vs Males"))
+)
+
+
+# Make the text output a simple gt table
+tab<-tibble(Text = output) %>%
+  gt() %>%
+  tab_header(
+    title = "Estimated Differences in the Opportunity for Selection of White-browed Coucals"
+  )
+tab
+
+# Save as PDF
+gtsave(tab, "tables/estimatediff/WBC_OppSelection_differences.pdf")
 
 ```
 
