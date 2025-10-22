@@ -40,13 +40,13 @@ for White-browed coucals.
 
 ##### Black coucals 
 - [`GradientsBC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsBC.Rmd)
-    R Markdown script containing the statistical analyses. Outputs of estimates of 1) bateman gradients, 2) differences between sex classes, 3) opportunities for selection and sexual selection and 4) Path Selection analyses for age. 
+    R Markdown script containing the statistical analyses. Outputs of estimates of 1) bateman gradients, 2) differences between sex classes, 3) selection opportunities and 4) path selection analyses for age. 
 - [`PathsSelection_BC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_BC.Rmd)
     R Markdown script containing the path selection analyses of morphological traits. 
 
 ##### White-browed coucals
 - [`GradientsWB.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsWB.Rmd)
-    R Markdown script containing the statistical analyses. Outputs of estimates of 1) bateman gradients, 2) differences between sex classes and  3) opportunities for selection and sexual selection.
+    R Markdown script containing the statistical analyses. Outputs of estimates of 1) bateman gradients, 2) differences between sex classes and  3) selection opportunities.
 - [`PathsSelection_BC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_WB.Rmd)
     R Markdown script containing the path selection analyses of morphological traits.
 
@@ -70,10 +70,10 @@ for White-browed coucals.
 -   [`TabS2b.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/supl/TableS2b_WBC.pdf)
 
 [**`tables`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/tables) 
--   [`Table1_BC_I.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_BC_OppSel.pdf) Estimates Opportunity for Selection in Black coucals.
--   [`Table1_BC_Is.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_BC_OppSexSel.pdf) Estimates Opportunity for Sexual Selection in Black coucals.
--   [`Table1_WB_I.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_WB_OppSel.pdf) Estimates Opportunity for Selection in White-browed coucals.
--   [`Table1_WB_Is.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_WB_OppSexSel.pdf) Estimates Opportunity for Sexual Selection in White-browed coucals.
+-   [`Table1_BC_I.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_BC_OppSel.pdf) Estimates opportunity for selection in Black coucals.
+-   [`Table1_BC_Is.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_BC_OppSexSel.pdf) Estimates opportunity for sexual selection in Black coucals.
+-   [`Table1_WB_I.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_WB_OppSel.pdf) Estimates opportunity for selection in White-browed coucals.
+-   [`Table1_WB_Is.pdf`](https://github.com/lguadal/Batemangradients_coucals/blob/main/tables/Table1_WB_OppSexSel.pdf) Estimates opportunity for sexual selection in White-browed coucals.
 
 [**`tables/estimatediff/`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/tables/estimatediff) outputs of estimated differences in slopes and selection opportunities in both coucal species.
 
