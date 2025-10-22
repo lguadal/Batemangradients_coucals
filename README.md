@@ -76,6 +76,11 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 
 [**`tables/estimatediff/`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/tables/estimatediff) outputs of estimated differences in slopes and opportunities for selection in both coucal species.
 
+### Datasets description: 
+
+- For each provided data set, we include details on the variables presented. Each row represents an individual bird.
+- Standardized values of mating and reproductive success are generated directly through the analysis in the Rmarkdown scripts.
+
 [**`data`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/data)
 
 ###### Black coucals 
@@ -87,13 +92,9 @@ for White-browed coucals and **15 breeding seasons** for Black coucals.
 -   [`data_morpho_WB.csv`](https://github.com/lguadal/Batemangradients_coucals/blob/main/data/data_morpho_WB.csv)
 
 
-## Datasets description: 
-
-- For each provided data set, we include details on the variables presented. Each row represents an individual bird.
-- Standardized values of mating and reproductive success are generated directly through the analysis in the Rmarkdown scripts.
 
 ---
-#### blackcoucal_gradients.csv
+#### [`blackcoucal_gradients.csv`](https://github.com/lguadal/Batemangradients_coucals/blob/main/data/blackcoucal_gradients.csv)
 
 | Column name       | Type   | Units / Scale                        | Description |
 |------------------|--------|--------------------------------------|-------------|
