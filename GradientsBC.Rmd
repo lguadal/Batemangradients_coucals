@@ -46,7 +46,7 @@ dataclean <- read.csv("data/blackcoucal_gradients.csv")
 knitr::opts_chunk$set(message = FALSE)
 ```
  
-```{r,warning=FALSE}
+```{r, warning = FALSE}
 ## Loading the libraries 
 
 library(ggplot2) # Visualizing results: Creates customizable plots using the grammar of graphics.
@@ -71,7 +71,7 @@ library(webshot2)
 ```{r}
 #Set a theme for plots 
 # Define a custom theme
-custom_theme <- theme_bw() +
+custom_theme <- theme_classic() +
   theme(text = element_text(family = "Arial"),
         legend.text = element_text(size = 9),
         legend.title = element_text(size = 9),
@@ -126,11 +126,6 @@ hist(fe$totaloff)
 hist(fe$totalmates) 
 hist(ma$totaloff)
 hist(ma$totalmates)
-
-#display factor levels for category
-levels(dataclean$category)
-
-
 ````
 
 
@@ -154,13 +149,6 @@ print(table(dataclean$sex)) #There are repeated measures of 3 males
 dataclean %>% filter(ring_no_lab=="*34")
 dataclean %>% filter(ring_no_lab=="*38")
 dataclean %>% filter(ring_no_lab=="CW15_143")
-
-fe<- dataclean %>% filter(sex =="female") %>% droplevels()
-ma <- dataclean %>% filter(sex == "male") %>% droplevels()
-
-levels(dataclean$category)
-levels(ma$category)
-levels(fe$category)
 
 # Count unique number of females and males per category
 counts <- dataclean %>%
@@ -557,8 +545,7 @@ tab<-tibble(Text = output) %>%
   tab_header(
     title = "Estimated Differences Between Slopes in Black Coucals",
     subtitle = "Bateman Gradient Comparisons"
-  )%>%
-  cols_label("" = "")  # Remove column label
+  )  # Remove column label
 
 
 # Save as PDF
@@ -2246,20 +2233,20 @@ gtsave(tab, "supl/TableS3_BC.pdf")
 
 
 # Filter rows where level is "1females"
-dataclean <- dataclean %>%
+datclean <- dataclean %>%
   filter(category != "1females") %>% droplevels()
 
 # View the result
-print(dataclean)
+print(datclean)
 
 # Calculate the range of values for the 'range_totalnest_sum variable in 'dataclean'
-range_totalnest_sum<- range(dataclean$totalnest_sum, na.rm = TRUE)
+range_totalnest_sum<- range(datclean$totalnest_sum, na.rm = TRUE)
 
 # Display the range of range_totalnest_sum
 range_totalnest_sum
 
 # Create a new data frame 'newdat' for plotting, with 'totalmates' ranging from 0 to 5
-newdat <- expand.grid(totalnest_sum = seq(1, 5, length = 100), category = levels(dataclean$category))
+newdat <- expand.grid(totalnest_sum = seq(1, 5, length = 100), category = levels(datclean$category))
 
 # Display the table of 'category' levels
 table(newdat$category)
@@ -2293,7 +2280,7 @@ head(newdat)
 ```{r, warning=FALSE}
 #Males
 
-plot <- ggplot(dataclean, aes(x = jitter(totalnest_sum, 0.15), y = jitter(totaloff, 0.5), color = category)) +
+plot <- ggplot(datclean, aes(x = jitter(totalnest_sum, 0.15), y = jitter(totaloff, 0.5), color = category)) +
    geom_point(shape = 16, alpha = 0.4, size = 3)+
    labs(x = "Number of nests", y = "Reproductive success") +
    scale_y_continuous(breaks = seq(2, 20, by = 4)) +
@@ -2932,10 +2919,10 @@ fedat$Z.q<-t.poly[,2] #quadratic term for age
 # Set variables
 # ============================
 
-fedat$Z.l <- fedat$Z.l
+#fedat$Z.l <- fedat$Z.l
 Z.l <- fedat$Z.l
 
-fedat$Z.q <- fedat$age.q
+#fedat$Z.q <- fedat$age.q
 Z.q <- fedat$Z.q
 
 M <- fedat$M
@@ -2954,6 +2941,20 @@ betaMZraw <- summary(glm(M ~ Z.l +Z.q))$coefficients["Z.q", 1]
 mod       <- lm(M ~ Z.l +Z.q, data = fedat)
 bsim      <- sim(mod, n.sims = 10000)
 beta_sims <- bsim@coef[, "Z.q"]
+
+set.seed(123)
+# Set the number of simulations
+nsim <- 10000
+
+# Simulate the model 'mod' with 'nsim' iterations and store the results in 'bsim'
+bsim <- sim(mod, n.sim = nsim)
+
+# Examine the structure of the 'bsim' object
+str(bsim)
+
+# Calculate quantiles for the fixed effects (coefficients) of the model at probabilities 0.025, 0.5, and 0.975, rounded to two decimal places
+round(apply(bsim@coef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
+
 
 #Meaning: a meaningful negative quadratic coefficient means that the relationship between age and mating success is concave down: mating success peaks at intermediate agges and declines for both younger and older individuals. ie. mid aged individuals achieve the highest mating success, selection is favouring intermediate ages
 
@@ -3113,67 +3114,49 @@ total_selection_q     <- sexual_selection_q + remaining_selection_q
 # ----- Combined -----
 sexual_selection    <- varZ * betaRM_sims * betaMZ_sims
 remaining_selection <- varZ * betaRZ_sims
-total_selection    <- sexual_selection_q + remaining_selection_q
+total_selection    <- sexual_selection + remaining_selection
 
 
 # ============================================================
 # Summarize Results
 # ============================================================
 summary_pathcoeff <- data.frame(
-  Component = rep(c("Linear (Z.l)", "Quadratic (Z.q)", "Combined"), each = 3),
-  Parameter = rep(c("Sexual Selection", "Remaining Selection", "Total Selection"), times = 3),
+  Component = rep("Combined", 3),
+  Parameter = c("Sexual Selection", "Remaining Selection", "Total Selection"),
   Mean = round(c(
-    mean(sexual_selection_l), mean(remaining_selection_l), mean(total_selection_l),
-    mean(sexual_selection_q), mean(remaining_selection_q), mean(total_selection_q),
     mean(sexual_selection), mean(remaining_selection), mean(total_selection)
   ), 2),
   lowerCrl = round(c(
-    quantile(sexual_selection_l, 0.025),
-    quantile(remaining_selection_l, 0.025),
-    quantile(total_selection_l, 0.025),
-    quantile(sexual_selection_q, 0.025),
-    quantile(remaining_selection_q, 0.025),
-    quantile(total_selection_q, 0.025),
     quantile(sexual_selection, 0.025),
     quantile(remaining_selection, 0.025),
     quantile(total_selection, 0.025)
   ), 2),
   upperCrl = round(c(
-    quantile(sexual_selection_l, 0.975),
-    quantile(remaining_selection_l, 0.975),
-    quantile(total_selection_l, 0.975),
-    quantile(sexual_selection_q, 0.975),
-    quantile(remaining_selection_q, 0.975),
-    quantile(total_selection_q, 0.975),
     quantile(sexual_selection, 0.975),
     quantile(remaining_selection, 0.975),
     quantile(total_selection, 0.975)
   ), 2),
   P_prob = round(c(
-    mean(sexual_selection_l > 0),
-    mean(remaining_selection_l > 0),
-    mean(total_selection_l > 0),
-    mean(sexual_selection_q > 0),
-    mean(remaining_selection_q > 0),
-    mean(total_selection_q > 0),
     mean(sexual_selection > 0),
     mean(remaining_selection > 0),
     mean(total_selection > 0)
   ), 3)
 )
 
-  
 
 print(summary_pathcoeff)
-
-
 
 ```
 
 ### Save table 
 
-
 ```{r}
+#Combine tables 
+
+combined_summary <- rbind(beta_summary1, beta_summary2, 
+                          beta_summary3, beta_summary4,
+                          summary_pathcoeff)
+
 
 # Number of observations used in the model
 n_obs <- nobs(mod)
@@ -3241,7 +3224,7 @@ webshot("tables/Table3e_age_BC.html", "tables/Table3e_age_BC.pdf", zoom = 2)
 ##### Plotting Selection on Z (controlling for M) 
 
 mod <- glm(R ~ Z.l + Z.q , data = fedat)
-mod
+
 
 nsim <- 10000
 bsim <- sim(mod, n.sim=nsim)
@@ -3277,7 +3260,7 @@ ages_repr_fe<-ggplot()+
   geom_line(data = newdat, aes(x=Z,  y = lwr),color = "violetred", position = position_dodge(width = 2),   show.legend = FALSE) +
  
    geom_line(data = newdat, aes(x=Z,  y = upr), color = "violetred" ,position = position_dodge(width = 2),    show.legend = FALSE) +
-     xlab("Age in years (variance stand.)") +
+     xlab("Age (variance stand.)") +
    ylab("Reproductive success (relative to mean)") +
   labs(title = "Females (n = 51)")+
  scale_x_continuous(

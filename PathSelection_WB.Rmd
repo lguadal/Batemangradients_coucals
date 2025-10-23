@@ -109,7 +109,9 @@ head(result_df)
 # Convert specific columns to factors
 morpho <- morpho %>%
   mutate_at(vars(ring_no, sex, year, lab_id, analysis, species), as.factor)
-head(morpho) # Display the first few rows of the modified 'morpho' data frame
+
+morpho <- morpho %>%
+  mutate_at(vars(no_off, no_mates, tail_body, body_mass), as.numeric)
 
 # Print the row numbers where 'scaled_mass_index' and 'tail_body' are both NA
 na_rows <- which(is.na(morpho$scaled_mass_index) & is.na(morpho$tail_body))

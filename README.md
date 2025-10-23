@@ -98,15 +98,15 @@ for White-browed coucals.
 | Column name       | Type   | Units / Scale                        | Description |
 |------------------|--------|--------------------------------------|-------------|
 | `ring_no_lab`     | factor | categorical (299 levels)             | An anonymized identifier for each individual bird obtained from sibship analyses. |
-| `year`            | factor | categorical (2001–2015)              | Year when the bird was sampled. |
-| `ring_no`         | factor | categorical (166 levels)             | Ring number identifying each bird. |
+| `year`            | factor | categorical (2001–2019)              | Year when the bird was sampled. |
+| `ring_no`         | factor | categorical (167 levels)             | Ring number identifying each bird. |
 | `sex`             | factor | categorical (`female`, `male`)       | Sex of the individual. |
 | `age`             | factor | categorical (1, 2, 3)               | Age class of the individual (in years) |
-| `totaloff`        | numeric| count                                | Total number of offspring sired by the individual. |
-| `totalmates`      | numeric| count                                | Total number of genetic mates for the individual. |
+| `totaloff`        | numeric| count                                | Total number of genetic offspring sired by the individual during a breeding season. |
+| `totalmates`      | numeric| count                                | Total number of genetic mates of an individual during a breeding season. |
 | `epy`             | factor | categorical (0, 1)                   | Extra-pair offspring indicator (1 = extra-pair offspring present, 0 = none). |
 | `category`        | factor | categorical ("1females", "2males"", "3malesENO"")| Classification category of the individual (2males == males without extra nest offspring (ENO); 3malesENO == males with ENO). |
-| `totalnest_sum`   | numeric| count                                | Total number of nests where an individual sired offspring.|
+| `totalnest_sum`   | numeric| count                                | Total number of nests where an individual sired genetic offspring.|
 
 ---
 
@@ -119,16 +119,16 @@ for White-browed coucals.
 | `sex`                 | factor  | categorical (`female`, `male`)       | Sex of the individual. |
 | `year`                | factor  | categorical (2001–2014)              | Year when the bird was sampled. |
 | `parent`              | factor  | categorical (163 levels)             | An anonymized identifier for each individual bird obtained from sibship analyses.  |
-| `totaloff`            | integer | count                                | Total number of offspring produced by the individual. |
-| `totalmates`          | integer | count                                | Total number of genetic mates of the individual. |
-| `epy`                 | integer | count (0/1)                          | Number of extra-pair young produced. |
+| `totaloff`            | numeric | count                                | Total number of genetic offspring produced by the individual during a breeding season. |
+| `totalmates`          | numeric | count                                | Total number of genetic mates of an individual during a breeding season. |
+| `epy`                 | factor | category (0/1)                          | Presence of an extra-pair young in the total of genetic offspring sired by an individual. |
 | `category`            | factor  | categorical (1females, 2males, etc.)|  Classification category of the individual (2males == males without extra nest offspring (ENO); 3malesENO == males with ENO). |
 | `species`             | factor  | categorical (1 level: black coucal)  | Species of the bird. |
-| `body_mass`           | integer | g                                     | Body mass of the individual. Some entries missing. |
+| `body_mass`           | numeric | g                                     | Body mass of the individual. Some entries missing. |
 | `right_tarsus`        | numeric | mm                                    | Length of the right tarsus. |
 | `tarsus_mean_SMI`     | numeric | mm                                    | Mean tarsus length used for scaled mass index calculations. |
-| `scaled_mass_index`   | numeric | g                                     | Scaled mass index for body condition. |
-| `tail_body`           | integer | mm                                    | Tail-to-body length measurement. |
+| `scaled_mass_index`   | numeric | -                                     | Scaled mass index for body condition. |
+| `tail_body`           | numeric | mm                                    | Tail-to-body length measurement. |
 
 ---
 ---
@@ -137,11 +137,11 @@ for White-browed coucals.
 | Column name       | Type   | Units / Scale                        | Description |
 |------------------|--------|--------------------------------------|-------------|
 | `lab_id`          | factor | categorical (162 levels)             | Laboratory ID for each individual bird. |
-| `year`            | factor | categorical (2005–2017)             | Year when the bird was sampled. |
-| `no_off`          | numeric| count                                | Total number of offspring sired by the individual. |
-| `no_mates`        | numeric| count                                | Total number of genetic mates of the individual. |
+| `year`            | factor | categorical (2005–2019)             | Year when the bird was sampled. |
+| `no_off`          | numeric| count                                | Total number of genetic offspring sired by the individual during a breeding season. |
+| `no_mates`        | numeric| count                                | Total number of genetic mates of an individual during a breeding season. |
 | `sex`             | factor | categorical (`female`, `male`)       | Sex of the individual. |
-| `ring_no`         | character | text                              | Ring number identifying each bird. |
+| `ring_no`         | factor | categorical (100 levels)   | Ring number identifying each bird. |
 
 ---
 ---
@@ -153,14 +153,14 @@ for White-browed coucals.
 | `sex`                 | factor  | categorical (`female`, `male`)       | Sex of the individual. |
 | `year`                | factor  | categorical (2005–2017)             | Year when the bird was sampled. |
 | `lab_id`              | factor  | categorical (96 levels)             |  An anonymized identifier for each individual bird obtained from sibship analyses. |
-| `no_off`              | integer | count                                | Total number of offspring produced by the individual.  |
-| `no_mates`            | integer | count                                | Total number of genetic mates of the individual. |
+| `no_off`              | numeric | count                                | Total number of genetic offspring produced by the individual during a breeding season.  |
+| `no_mates`            | numeric | count                                | Total number of genetic mates of an individual during a breeding season. |
 | `species`             | factor  | categorical (1 level: white-browed coucal) | Species of the bird. |
 | `body_mass`           | integer | g                                     | Body mass of the individual. |
 | `right_tarsus`        | numeric | mm                                    | Length of the right tarsus. |
 | `tarsus_mean_SMI`     | numeric | mm                                    | Mean tarsus length used for scaled mass index calculations. |
-| `scaled_mass_index`   | numeric | g                                     | Scaled mass index for body condition;.|
-| `tail_body`           | integer | mm                                    | Tail-to-body length measurement. |
+| `scaled_mass_index`   | numeric | -                                     | Scaled mass index for body condition.|
+| `tail_body`           | numeric | mm                                    | Tail-to-body length measurement. |
 
 ---
 

@@ -455,79 +455,7 @@ saveRDS(smi_fem, file = "cache/figA.rds")
 
 ```
 
-##### Alternative plot 
-```{r}
 
-t.poly<- poly(fe_sum$Z,2)
-fe_sum$Z.l<-t.poly[,1] #linear term for age
-fe_sum$Z.q<-t.poly[,2] #quadratic term for age
-
-
-##### Plotting Selection on Z (controlling for M) 
-
-mod <- glm(R ~ Z.l + Z.q , data = fe_sum)
-
-par(mfrow=c(3,2))
-scatter.smooth(fitted(mod),resid(mod));abline(h=0, lty=2)
-title("Tukey-Ascombe plot") #residual vs fitted, indicates strong shrinkage
-
-qqnorm(resid(mod), main = "normal qq-plot, residuals") #"qq of residuals"
-qqline(resid(mod))
-scatter.smooth(fitted(mod),sqrt(abs(resid(mod)))) # res.var vs fitted 
-
-#look at the residuals
-par(mfrow=c(2,2)) 
-scatter.smooth(fitted(mod),resid(mod)) #look OK
-
-nsim <- 10000
-bsim <- sim(mod, n.sim=nsim)
-colnames(bsim@coef) <- names(coef(mod))  
-str(bsim)
-round(apply(bsim@coef, 2, quantile, prob=c(0.025,0.5,0.975)),3)
-quantile(bsim@sigma, prob=c(0.025,0.5,0.975))
-mean(coef(bsim)[,1]<0)
-
-
-range(fe_sum$Z)
-
-newdat <- expand.grid(Z= seq(-2.91, 2.67, length=100))
-newdat$Z.l <- predict (t.poly, newdat$Z)[,1]
-newdat$Z.q <- predict (t.poly, newdat$Z)[,2]
-
-head(model.matrix(mod))
-Xmat <- model.matrix(~  Z.l + Z.q , data=newdat)
-head(Xmat)
-
-fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
-for(i in 1:nsim) fitmat[,i] <- Xmat%*%bsim@coef[i,]
-
-newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
-newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
-newdat$fit <- (Xmat%*%coef(mod))
-
-smi_fem<-ggplot()+
-  geom_point(data = fe_sum, aes (x=Z, y= R),  color = "violetred", size=3, alpha =0.3, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
-  geom_line(data = newdat, aes(x=Z,  y = fit ),  color = "violetred", position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
-  geom_line(data = newdat, aes(x=Z,  y = lwr),color = "violetred", position = position_dodge(width = 2),   show.legend = FALSE) +
-   geom_line(data = newdat, aes(x=Z,  y = upr), color = "violetred" ,position = position_dodge(width = 2),    show.legend = FALSE) +
-    xlab("Body mass (variance stand.)") +
-  ylab("Reproductive success (relative to mean)") +
-  labs(title = "Females (n = 67)")+
-  theme_plots()
-
-smi_fem
-smi_fem<-ggarrange(smi_fem, labels = c("A"))
-
-
-ggsave("figures/fig3/alternative_smi_fem_A.png", plot = smi_fem, 
-       width = 3, height = 4, dpi = 300,
-       bg="transparent")
-
-# Save the ggplot object as an RDS file
-saveRDS(smi_fem, file = "cache/alternativefigA.rds")
-
-
-```
 
 
 ### 1.2 Female path coefficient (Tarsus length).
@@ -739,7 +667,8 @@ print(summary_pathcoeff)
 ##### Plotting Selection on Z (controlling for M) 
 mod <- glm(R ~ Z +M , data = fe_sum)
 
-
+summary(mod)
+mod
 par(mfrow=c(3,2))
 scatter.smooth(fitted(mod),resid(mod));abline(h=0, lty=2)
 title("Tukey-Ascombe plot") #residual vs fitted, indicates strong shrinkage
@@ -824,80 +753,6 @@ ggsave("figures/fig3/tarsus_fem_C.png", plot = tarsus_fem,
 
 # Save the ggplot object as an RDS file
 saveRDS(tarsus_fem, file = "cache/figC.rds")
-```
-
-##### Alternative plot 
-```{r}
-
-t.poly<- poly(fe_sum$Z,2)
-fe_sum$Z.l<-t.poly[,1] #linear term for age
-fe_sum$Z.q<-t.poly[,2] #quadratic term for age
-
-
-##### Plotting Selection on Z (controlling for M) 
-
-mod <- glm(R ~ Z.l + Z.q , data = fe_sum)
-
-par(mfrow=c(3,2))
-scatter.smooth(fitted(mod),resid(mod));abline(h=0, lty=2)
-title("Tukey-Ascombe plot") #residual vs fitted, indicates strong shrinkage
-
-qqnorm(resid(mod), main = "normal qq-plot, residuals") #"qq of residuals"
-qqline(resid(mod))
-scatter.smooth(fitted(mod),sqrt(abs(resid(mod)))) # res.var vs fitted 
-
-#look at the residuals
-par(mfrow=c(2,2)) 
-scatter.smooth(fitted(mod),resid(mod)) #look OK
-
-nsim <- 10000
-bsim <- sim(mod, n.sim=nsim)
-colnames(bsim@coef) <- names(coef(mod))  
-str(bsim)
-round(apply(bsim@coef, 2, quantile, prob=c(0.025,0.5,0.975)),3)
-quantile(bsim@sigma, prob=c(0.025,0.5,0.975))
-mean(coef(bsim)[,1]<0)
-
-
-range(fe_sum$Z)
-
-newdat <- expand.grid(Z= seq(-2.21, 3.06, length=100))
-newdat$Z.l <- predict (t.poly, newdat$Z)[,1]
-newdat$Z.q <- predict (t.poly, newdat$Z)[,2]
-
-head(model.matrix(mod))
-Xmat <- model.matrix(~  Z.l + Z.q , data=newdat)
-head(Xmat)
-
-fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
-for(i in 1:nsim) fitmat[,i] <- Xmat%*%bsim@coef[i,]
-
-newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
-newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
-newdat$fit <- (Xmat%*%coef(mod))
-
-tarsus_fem<-ggplot()+
-  geom_point(data = fe_sum, aes (x=Z, y= R),  color = "violetred", size=3, alpha =0.3, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
-  geom_line(data = newdat, aes(x=Z,  y = fit ),  color = "violetred", position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
-  geom_line(data = newdat, aes(x=Z,  y = lwr),color = "violetred", position = position_dodge(width = 2),   show.legend = FALSE) +
-   geom_line(data = newdat, aes(x=Z,  y = upr), color = "violetred" ,position = position_dodge(width = 2),    show.legend = FALSE) +
-    xlab("Right tarsus length (variance stand.)") +
-  ylab("Reproductive success (relative to mean)") +
-  labs(title = "Females (n = 68)")+
-  theme_plots()
-
-tarsus_fem
-
-print(tarsus_fem)
-tarsus_fem<-ggarrange(tarsus_fem, labels = c("C"))
-
-ggsave("figures/fig3/alternative_tarsus_fem_C.png", plot = tarsus_fem, 
-       width = 3, height = 4, dpi = 300,
-       bg="transparent")
-
-# Save the ggplot object as an RDS file
-saveRDS(tarsus_fem, file = "cache/alternativefigC.rds")
-
 ```
 
 
@@ -1181,83 +1036,6 @@ ggsave("figures/fig3/tail_fem_E.png", plot = tail_fem,
 
 # Save the ggplot object as an RDS file
 saveRDS(tail_fem, file = "cache/figE.rds")
-
-```
-
-
-##### Alternative plot 
-```{r}
-
-t.poly<- poly(fe_sum$Z,2)
-fe_sum$Z.l<-t.poly[,1] #linear term for age
-fe_sum$Z.q<-t.poly[,2] #quadratic term for age
-
-
-##### Plotting Selection on Z (controlling for M) 
-
-mod <- glm(R ~ Z.l + Z.q , data = fe_sum)
-
-par(mfrow=c(3,2))
-scatter.smooth(fitted(mod),resid(mod));abline(h=0, lty=2)
-title("Tukey-Ascombe plot") #residual vs fitted, indicates strong shrinkage
-
-qqnorm(resid(mod), main = "normal qq-plot, residuals") #"qq of residuals"
-qqline(resid(mod))
-scatter.smooth(fitted(mod),sqrt(abs(resid(mod)))) # res.var vs fitted 
-
-#look at the residuals
-par(mfrow=c(2,2)) 
-scatter.smooth(fitted(mod),resid(mod)) #look OK
-
-nsim <- 10000
-bsim <- sim(mod, n.sim=nsim)
-colnames(bsim@coef) <- names(coef(mod))  
-str(bsim)
-round(apply(bsim@coef, 2, quantile, prob=c(0.025,0.5,0.975)),3)
-quantile(bsim@sigma, prob=c(0.025,0.5,0.975))
-mean(coef(bsim)[,1]<0)
-
-
-range(fe_sum$Z)
-
-newdat <- expand.grid(Z= seq(-2.17, 2.16, length=100))
-newdat$Z.l <- predict (t.poly, newdat$Z)[,1]
-newdat$Z.q <- predict (t.poly, newdat$Z)[,2]
-
-head(model.matrix(mod))
-Xmat <- model.matrix(~  Z.l + Z.q , data=newdat)
-head(Xmat)
-
-fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
-for(i in 1:nsim) fitmat[,i] <- Xmat%*%bsim@coef[i,]
-
-newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
-newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
-newdat$fit <- (Xmat%*%coef(mod))
-
-
-tail_fem<-ggplot()+
-  geom_point(data = fe_sum, aes (x=Z, y= R),  color = "violetred", size=3, alpha =0.3, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
-  geom_line(data = newdat, aes(x=Z,  y = fit ),  color = "violetred", position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
-  geom_line(data = newdat, aes(x=Z,  y = lwr),color = "violetred", position = position_dodge(width = 2),   show.legend = FALSE) +
-   geom_line(data = newdat, aes(x=Z,  y = upr), color = "violetred" ,position = position_dodge(width = 2),    show.legend = FALSE) +
-     xlab("Tail length (variance stand.)") +
-  ylab("Reproductive success (relative to mean)") +
-    labs(title = "Females (n = 65)") +
-  theme_plots()
-
-print(tail_fem)
-tail_fem<-ggarrange(tail_fem, labels = c("E"))
-
-ggsave("figures/fig3/alternative_tail_fem_E.png", plot = tail_fem, 
-       width = 3, height = 4, dpi = 300,
-       bg="transparent")
-
-# Save the ggplot object as an RDS file
-saveRDS(tail_fem, file = "cache/alternative_figE.rds")
-
-
-
 
 ```
 
@@ -1551,85 +1329,6 @@ ggsave("figures/fig3/smb_fem_G.png", plot = smb_fem,
 saveRDS(smb_fem, file = "cache/figG.rds")
 
 ```
-
-##### Alternative plot 
-```{r}
-
-t.poly<- poly(fe_sum$Z,2)
-fe_sum$Z.l<-t.poly[,1] #linear term for age
-fe_sum$Z.q<-t.poly[,2] #quadratic term for age
-
-
-##### Plotting Selection on Z (controlling for M) 
-
-mod <- glm(R ~ Z.l + Z.q , data = fe_sum)
-
-par(mfrow=c(3,2))
-scatter.smooth(fitted(mod),resid(mod));abline(h=0, lty=2)
-title("Tukey-Ascombe plot") #residual vs fitted, indicates strong shrinkage
-
-qqnorm(resid(mod), main = "normal qq-plot, residuals") #"qq of residuals"
-qqline(resid(mod))
-scatter.smooth(fitted(mod),sqrt(abs(resid(mod)))) # res.var vs fitted 
-
-#look at the residuals
-par(mfrow=c(2,2)) 
-scatter.smooth(fitted(mod),resid(mod)) #look OK
-
-nsim <- 10000
-bsim <- sim(mod, n.sim=nsim)
-colnames(bsim@coef) <- names(coef(mod))  
-str(bsim)
-round(apply(bsim@coef, 2, quantile, prob=c(0.025,0.5,0.975)),3)
-quantile(bsim@sigma, prob=c(0.025,0.5,0.975))
-mean(coef(bsim)[,1]<0)
-
-
-range(fe_sum$Z)
-
-newdat <- expand.grid(Z= seq(-2.17, 2.16, length=100))
-newdat$Z.l <- predict (t.poly, newdat$Z)[,1]
-newdat$Z.q <- predict (t.poly, newdat$Z)[,2]
-
-head(model.matrix(mod))
-Xmat <- model.matrix(~  Z.l + Z.q , data=newdat)
-head(Xmat)
-
-fitmat <- matrix(ncol=nsim, nrow=nrow(newdat))
-for(i in 1:nsim) fitmat[,i] <- Xmat%*%bsim@coef[i,]
-
-newdat$lwr <- apply(fitmat, 1, quantile, prob=0.025)
-newdat$upr <- apply(fitmat, 1, quantile, prob=0.975)
-newdat$fit <- (Xmat%*%coef(mod))
-
-
-smb_fem<-ggplot()+
-  geom_point(data = fe_sum, aes (x=Z, y= R),  color = "violetred", size=3, alpha =0.3, shape = 17, position = position_jitter(width = 0.1, height = 0.1), show.legend = FALSE ) +
-  geom_line(data = newdat, aes(x=Z,  y = fit ),  color = "violetred", position = position_dodge(width = 2),   size = 1.5, show.legend = FALSE) + 
-  geom_line(data = newdat, aes(x=Z,  y = lwr),color = "violetred", position = position_dodge(width = 2),   show.legend = FALSE) +
-   geom_line(data = newdat, aes(x=Z,  y = upr), color = "violetred" ,position = position_dodge(width = 2),    show.legend = FALSE) +
-  xlab("Scaled mass index (variance stand.)") +
-  ylab("Reproductive success (relative to mean)") +
-    labs(title = "Females (n = 67)") +
-  theme_plots()
-
-smb_fem
-
-print(smb_fem)
-smb_fem<-ggarrange(smb_fem, labels = c("G"))
-
-ggsave("figures/fig3/alternative_smb_fem_G.png", plot = smb_fem, 
-       width = 3, height = 4, dpi = 300,
-       bg="transparent")
-
-# Save the ggplot object as an RDS file
-saveRDS(smb_fem, file = "cache/alternative_figG.rds")
-
-
-
-```
-
-
 
 
 #2. Table 3: Path coefficients Males (by category)
@@ -2720,7 +2419,7 @@ saveRDS(tail_ma, file = "cache/figF.rds")
 ```
 
 
-### 2.3 Male path coefficient (scaled body mass).
+### 2.4 Male path coefficient (scaled body mass).
 ```{r}
 # ============================
 # Inspect Data
@@ -2964,7 +2663,7 @@ print(posterior_probs)
 
 ```
 
-#### 2.3.1 Plot Selection gradient on scaled body mass controlling for M
+#### 2.4.1 Plot Selection gradient on scaled body mass controlling for M
 ```{r}
 
 ##### Plotting Selection on Z (controlling for M) 
