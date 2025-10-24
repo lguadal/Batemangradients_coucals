@@ -2838,8 +2838,8 @@ n_2males <- sum(ma_sum$cat == "2males")
 
 age_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
   geom_point(aes(color = category), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
-  scale_color_manual(
-    values = c("3malesENO" = "orange", "2males" = "blue"),
+    scale_color_manual(
+    values = c( "2males" = "blue", "3malesENO" = "orange"),
     labels = c(
       paste0("with (n = ", n_3malesENO, ")"),
       paste0("without (n = ", n_2males, ")")
