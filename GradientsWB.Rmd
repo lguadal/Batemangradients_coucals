@@ -1054,7 +1054,7 @@ multi_panel <- grid.arrange(leftpanel, nullGrob(), rightpanel, ncol = 3, widths 
 #ggsave("figures/whitebrowed coucals/Fig2_gradients_WC.png", plot = multi_panel ,  width = 21, height = 10, dpi = 300)
 
 
-ggsave("figures/whitebrowed coucals/Fig2_gradients_WC_alternative.png", plot = multi_panel ,
+ggsave("figures/whitebrowed coucals/Fig2_gradients_WC.png", plot = multi_panel ,
   width = 22,    # ↓ narrower overall
   height = 10,   # you can adjust this too for balance
   dpi = 300,
