@@ -2798,7 +2798,7 @@ print(range_M)
 # Create a new data frame 'newdat' with Z
 newdat <- expand.grid(Z = seq(-1.17, 1.15, length = 100),
                       M= mean(ma_sum$M),
-                      cat = levels(ma_sum$category))
+                      cat = levels(ma_sum$cat))
 
 
 str(newdat) # Display the structure of the 'newdat' data frame
@@ -2837,22 +2837,23 @@ n_2males <- sum(ma_sum$cat == "2males")
 
 
 age_ma <- ggplot(ma_sum, aes(x = Z, y = R)) +
-  geom_point(aes(color = category), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
-    scale_color_manual(
-    values = c( "2males" = "blue", "3malesENO" = "orange"),
-    labels = c(
-      paste0("with (n = ", n_3malesENO, ")"),
-      paste0("without (n = ", n_2males, ")")
-    ),
-    name = "Extra nest offspring" 
-  ) +
+  geom_point(aes(color = cat), shape = 16, size = 3, alpha = 0.3, position = position_jitter(0.1)) +
   xlab("Age (variance stand.)") +
   ylab("Reproductive success (relative to mean)") +
   geom_line(data = newdat, aes(x = Z, y = lwr, color = cat), linetype = "solid",show.legend = FALSE) +
   geom_line(data = newdat, aes(x = Z, y = upr, color = cat), linetype = "solid",show.legend = FALSE) +
-  geom_line(data = newdat, aes(x = Z, y = fit, color = cat), size = 1.5, ,show.legend = FALSE) +
+  geom_line(data = newdat, aes(x = Z, y = fit, color = cat), size = 1.5, show.legend = FALSE) +
   labs(title = "Males (n = 81)") +
-  theme_plots() +
+    scale_color_manual(
+      breaks = c("2males", "3malesENO"), 
+    values = c( "2males" = "blue", "3malesENO" = "orange"),
+    labels = c(
+      paste0("without (n = ", n_2males, ")"),
+      paste0("with (n = ", n_3malesENO, ")")
+    ),
+    name = "Extra nest offspring" 
+  ) +
+    theme_plots() +
   theme(
     legend.position = c(0.98, 0.98),  # top right corner
     legend.justification = c("right", "top"),
@@ -3214,8 +3215,6 @@ n_obs <- nobs(mod)
 
 gtsave(tab, "tables/Table3e_age_BC.html")
 
-# Convert HTML to PDF
-webshot("tables/Table3e_age_BC.html", "tables/Table3e_age_BC.pdf", zoom = 2)
 
 ```
 
