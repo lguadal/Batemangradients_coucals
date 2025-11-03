@@ -919,6 +919,13 @@ round(sum(fixef(bsim)[,6]>0)/nsim,3)
 # Calculate quantiles for the random
 
 round(quantile(as.vector(bsim@ranef$year), prob = c(0.025, 0.5, 0.975)),2)
+
+ayearesti<- apply(bsim@ranef$year,c(1,3),sd) #extract the sd among years for all the simulated values from the post distribution
+
+quantile(ayearesti, prob = c(0.025, 0.5, 0.975)) #among year variance, cannot be zero : standard deviation among years 
+
+
+
 # Proportion of values greater than 0 for random effects
 sum(as.vector(bsim@ranef$year) > 0) / length(as.vector(bsim@ranef$year))
 ```
