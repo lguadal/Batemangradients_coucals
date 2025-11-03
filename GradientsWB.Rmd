@@ -241,7 +241,7 @@ Log normal: The log normal transformation involves taking the natural logarithm 
 ```{r, warning=FALSE}
 mod <- glmer(no_off ~ 
                no_mates + 
-               (1|lab_id) + (1|random_factor), family="poisson", 
+               (1|lab_id) ,  family="poisson", 
              data = fe, 
              control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
 
@@ -337,6 +337,7 @@ qtab <- round(apply(bsim@fixef, 2, quantile, prob = c(0.025, 0.5, 0.975)), 2)
 
 # --- 2. Posterior probability > 0 ---
 prop_gt0 <- round(apply(fixef(bsim), 2, function(x) mean(x > 0)), 3)
+prop_gt0<- pmin(pmax(round(prop_gt0,3),0.001),0.999)
 
 # --- 3. Combine into a data frame ---
 result_table <- as.data.frame(t(qtab)) %>%
@@ -352,27 +353,21 @@ result_table$Effect <- recode(result_table$Effect,
 )
 
 # --- 5. Add random effects: observation level and identity  ---
-obslevel_quant <- round(quantile(as.vector(bsim@ranef$random_factor), prob = c(0.025, 0.5, 0.975)), 2)
-obslevel_prop <- round(sum(as.vector(bsim@ranef$random_factor) > 0) / length(as.vector(bsim@ranef$random_factor)), 3)
 
-id_quant <- round(quantile(as.vector(bsim@ranef$lab_id), prob = c(0.025, 0.5, 0.975)), 2)
-id_prop <- round(sum(as.vector(bsim@ranef$lab_id) > 0) / length(as.vector(bsim@ranef$lab_id)), 3)
+id_sd<- apply(bsim@ranef$lab_id, c(1,3), sd)
+id_quant <- round(quantile(id_sd, probs = c(0.025, 0.5, 0.975)), 2)
 
-obslevel_row <- data.frame(
-  Effect = "Random effect: observation level 102 groups",
-  `β (95% Crl)` = paste0(obslevel_quant["50%"], " (", obslevel_quant["2.5%"], ", ", obslevel_quant["97.5%"], ")"),
-  `P(β > 0)` = obslevel_prop,
-  check.names = FALSE
-)
+id_prop <- NA
+
 
 id_row <- data.frame(
-  Effect = "Random effect: bird identity 83 groups",
+  Effect = "SD of Random effect: bird identity 83 groups",
   `β (95% Crl)` = paste0(id_quant["50%"], " (", id_quant["2.5%"], ", ", id_quant["97.5%"], ")"),
   `P(β > 0)` = id_prop,
   check.names = FALSE
 )
 
-result_table <- bind_rows(result_table, obslevel_row, id_row)
+result_table <- bind_rows(result_table, id_row)
 
 # --- 6. R² values for lognormal model ---
 r2_log <- MuMIn::r.squaredGLMM(mod)[1, ]
@@ -553,7 +548,7 @@ males <- ggplot(males_data, aes(x = no_mates, y = no_off)) +
   geom_point(alpha = 0.2, size = 3, position = position_jitter(width = 0.05, height = 0.06), color = "blue" , shape = 16) +
   labs(title = "Males (n = 79) ")+
   labs(x = "Mating success", y = "Reproductive success") +
-  scale_x_continuous(breaks = c(1, 2), limits = c(0.90, 2.3)) +
+  scale_x_continuous(breaks = c(1, 2), limits = c(0.90, 2)) +
 custom_theme +
   ylim(0, 16) +
   guides(shape = FALSE)
@@ -572,7 +567,7 @@ plot <- ggplot(subset(dataclean, sex == "female"), aes(x = no_mates, y = no_off)
    labs(x = "Mating success", y = "Reproductive success",
        color = "Sex", shape = "Sex") +
   labs(title = "Females (n = 83) ")+
-  scale_x_continuous(breaks = c(1, 2), limits = c(0.90, 2.3)) +
+  scale_x_continuous(breaks = c(1, 2), limits = c(0.90, 2.0)) +
   scale_shape_manual(values = c(17, 16)) +
 custom_theme +
   ylim(0, 16) +
@@ -673,7 +668,6 @@ round(quantile(Slop_Fe, prob=c(0.025, 0.975)),2) #1.18  5.58
 
 ```{r, warning=FALSE}
 
-fe$aggregated_random_factor <- as.factor(as.numeric(as.factor(fe$random_factor)) %% 10) # example aggregation
 # Fit the model with the new aggregated factor
 mods <- lmer(no_off_s ~ no_mates.z + (1 | lab_id),
              data = fe,
@@ -1047,12 +1041,6 @@ rightpanel
 
 # Stack rows
 multi_panel <- grid.arrange(leftpanel, nullGrob(), rightpanel, ncol = 3, widths  = c(1, 0.2, 1))
-
-#ggsave("figures/whitebrowed coucals/leftFig2_gradients_WB.png", plot = leftpanel ,  width = 8, height = 6, dpi = 300)
-#ggsave("figures/whitebrowed coucals/rightFig2_gradients_WB.png", plot = rightpanel ,  width = 8, height = 6, dpi = 300)
-
-#ggsave("figures/whitebrowed coucals/Fig2_gradients_WC.png", plot = multi_panel ,  width = 21, height = 10, dpi = 300)
-
 
 ggsave("figures/whitebrowed coucals/Fig2_gradients_WC.png", plot = multi_panel ,
   width = 22,    # ↓ narrower overall
