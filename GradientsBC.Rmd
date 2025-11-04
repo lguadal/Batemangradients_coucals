@@ -2099,6 +2099,13 @@ mod <- glm(totaloff~
 mod
 MuMIn::r.squaredGLMM(mod)
 
+# Fit a null model (intercept only)
+nullmod <- glm(totaloff ~ 1, family = "poisson", data = dataclean)
+
+# Compute McFadden's pseudo-R²
+R2_McFadden <- 1 - (as.numeric(logLik(mod)) / as.numeric(logLik(nullmod)))
+R2_McFadden
+
 ```
 
 ## Assessing model assumptions 
@@ -2194,7 +2201,7 @@ tab <- result_table %>%
   gt() %>%
   tab_header(
     title = "Estimates of effects of number of nests and male categories in black coucals",
-    subtitle = paste0("Reproductive success\nN = ", n_obs, " obs. of 179 ind.\n")
+    subtitle = paste0("Reproductive success\nN = ", n_obs, " obs. of 179 ind.\n", "McFadden's R² =", round(R2_McFadden, 2))
   ) %>%
   cols_label(
     `β (95% Crl)` = "β (95% Crl)",
@@ -2390,8 +2397,8 @@ output2
 
 #extracting the posterior draws of the slopes 
 
-slope_2males <- bsim@fixef[, "totalnest_sum"] 
-slope_3malesENO <- bsim@fixef[, "totalnest_sum"] + bsim@fixef[, "totalnest_sum:category3malesENO"]
+slope_2males <- bsim@coef[, "totalnest_sum"] 
+slope_3malesENO <- bsim@coef[, "totalnest_sum"] + bsim@coef[, "totalnest_sum:category3malesENO"]
 
 # posterior summaries
 summarize_slope <- function(slope_draws) {
