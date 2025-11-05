@@ -47,7 +47,7 @@ for White-browed coucals.
 ##### White-browed coucals
 - [`GradientsWB.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/GradientsWB.Rmd)
     R Markdown script containing the statistical analyses. Outputs of estimates of 1) bateman gradients, 2) differences between sex classes and  3) selection opportunities.
-- [`PathsSelection_BC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_WB.Rmd)
+- [`PathSelection_WC.Rmd`](https://github.com/lguadal/Batemangradients_coucals/blob/main/PathsSelection_WB.Rmd)
     R Markdown script containing the path selection analyses of morphological traits.
 
 [**`figures`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/figures) 
