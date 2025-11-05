@@ -86,7 +86,6 @@ dataclean <- dataclean %>%
     no_off = as.numeric(no_off),
     no_mates = as.numeric(no_mates),
     sex = as.factor(sex),
-    random_factor = as.integer(random_factor),
     ring_no = as.factor(ring_no)
   )
 
