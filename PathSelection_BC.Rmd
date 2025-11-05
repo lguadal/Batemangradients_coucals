@@ -47,7 +47,7 @@ The script provides the following estimates for each trait in males and females:
 knitr::opts_knit$set(root.dir = "setwd(getwd())")
 
 # Read the CSV file
-morpho <- read.csv("data/morpho_BC.csv")
+morpho <- read.csv("data/data_morpho_BC.csv")
 
 ```
 
