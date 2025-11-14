@@ -312,6 +312,69 @@ round(apply(bsim@fixef, 2, quantile, prob = c(0.025, 0.5, 0.975)), 2)
 
 ```
 
+## Table 1- Gradients (Poisson ditribution) - average marginal effect (AME)
+
+````{r}
+
+
+# Model matrix
+Xmat <- model.matrix(~ no_mates, data = fe)
+
+# Store AMEs (only one column now!)
+ame_vec <- numeric(nsim)
+
+for (sim in 1:nsim) {
+  
+  # Extract simulated fixed effects
+  betas <- as.numeric(bsim@fixef[sim, ])
+  names(betas) <- colnames(Xmat)
+
+  # Linear predictor and mean
+  eta <- Xmat %*% betas
+  mu <- exp(eta)
+
+  # AME = derivative wrt no_mates
+  marginal_effects <- betas["no_mates"] * mu
+  
+  # Average across all observations
+  ame_vec[sim] <- mean(marginal_effects)
+}
+
+# Summary
+ame_summary <- data.frame(
+  mean_ame = mean(ame_vec),
+  lower_95 = quantile(ame_vec, 0.025),
+  upper_95 = quantile(ame_vec, 0.975)
+)
+
+# Probability AME > 0 (capped)
+prob_positive <- mean(ame_vec > 0)
+prob_positive <- pmin(prob_positive, 0.999)
+
+ame_summary$prob_higherzero <- prob_positive
+
+print(ame_summary)
+
+# GT Table
+tab <- ame_summary %>%
+  gt() %>%
+  tab_header(
+    title = "Average Marginal Effect (AME) for no_mates"
+  ) %>%
+  fmt_number(
+    columns = vars(mean_ame, lower_95, upper_95),
+    decimals = 3
+  ) %>%
+  cols_label(
+    mean_ame = "Mean AME",
+    lower_95 = "Lower 95% CI",
+    upper_95 = "Upper 95% CI",
+    prob_higherzero = "P(AME > 0)"
+  )
+
+gtsave(tab, "tables/Table1_WBC_AverageMarEffects_gradients.pdf")
+
+````
 
 ```{r}
 # Calculate the proportion of simulated fixed effects > 0 for each parameter
@@ -646,6 +709,7 @@ bsim <- sim(mod,n.sim=nsim)
 str(bsim)
 round(apply(bsim@fixef,2,quantile, prob=c(0.025, 0.5, 0.975)),2)
 ```
+
 
 ```{r}
 #Intercept females 
