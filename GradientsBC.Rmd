@@ -73,15 +73,25 @@ library(MuMIn)
 #Set a theme for plots 
 # Define a custom theme
 custom_theme <- theme_classic() +
-  theme(text = element_text(family = "Arial"),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10),
-        axis.text = element_text(size = 15),
-        axis.title = element_text(size = 15),
-        title = element_text(size=20),
-        plot.title = element_text(size = 20, face = "bold"),  # bold title
-        legend.key.size = unit(0.4, "cm") , 
-        axis.title.y = element_markdown())
+  theme(
+    text = element_text(family = "Arial"),
+
+    # Legend
+    legend.text = element_text(size = 15),
+    legend.title = element_text(size = 15),
+    legend.key.size = unit(0.4, "cm"),
+
+    # Axes
+    axis.text = element_text(size = 25),         # tick labels
+    axis.title.x = element_text(size = 25),      # x-axis label
+    axis.title.y = element_text(size = 25),  # y-axis label (markdown allowed)
+
+    # Plot titles
+    plot.title = element_text(size = 30, face = "bold"),
+    plot.subtitle = element_text(size = 18),
+    plot.caption = element_text(size = 30)
+  )
+
 
 #For plots traits and reproductive success 
 theme_plots <- function() {
@@ -952,6 +962,8 @@ sum(as.vector(bsim@ranef$year) > 0) / length(as.vector(bsim@ranef$year))
 
 Xmat <- model.matrix(~ totalmates * category, data = dataclean)
  # Initialize container for AMEs by category across simulations
+ncat <- length(levels(dataclean$category))
+
 ame_mat <- matrix(NA, nrow = nsim, ncol = ncat)
 colnames(ame_mat) <- levels(dataclean$category)
 
@@ -1399,7 +1411,124 @@ estimates_InterandSlopes
 
 
 
+#paralell
+````{r}
 
+
+Xmat <- model.matrix(~ totalmates * category, data = dataclean)
+ncat <- length(levels(dataclean$category))
+
+ame_mat <- matrix(NA, nrow = nsim, ncol = ncat)
+colnames(ame_mat) <- levels(dataclean$category)
+
+for (sim in 1:nsim) {
+  
+  betas <- as.numeric(bsim@fixef[sim, ])
+  names(betas) <- colnames(Xmat)
+  betas <- betas[colnames(Xmat)]
+  
+  eta <- Xmat %*% betas
+  mu <- exp(eta)
+  
+  for (cat in levels(dataclean$category)) {
+    
+    ind_cat <- dataclean$category == cat
+    interaction_term <- paste0("totalmates:category", cat)
+    
+    beta_interaction <- if (interaction_term %in% names(betas)) betas[interaction_term] else 0
+    
+    marginal_effects <- (betas["totalmates"] + beta_interaction) * mu[ind_cat]
+    
+    ame_mat[sim, cat] <- mean(marginal_effects)
+  }
+}
+
+ame_females   <- ame_mat[, "1females"]
+ame_males2    <- ame_mat[, "2males"]
+ame_males3ENO <- ame_mat[, "3malesENO"]
+
+summary_females_AME   <- summarize_slope(ame_females)
+summary_males2_AME    <- summarize_slope(ame_males2)
+summary_males3ENO_AME <- summarize_slope(ame_males3ENO)
+
+summaries_AME <- data.frame(
+  group = c("Females", "Males without ENO", "Males with ENO"),
+  rbind(summary_females_AME, summary_males2_AME, summary_males3ENO_AME),
+  row.names = NULL
+)
+
+summaries_AME <- data.frame(
+  group = c("Females", "Males without ENO", "Males with ENO"),
+  rbind(summary_females_AME, summary_males2_AME, summary_males3ENO_AME),
+  row.names = NULL
+)
+
+dens_list_AME <- list(
+  Females = density(ame_females),
+  `Males without ENO` = density(ame_males2),
+  `Males with ENO` = density(ame_males3ENO)
+)
+
+dens_df_AME <- do.call(rbind, lapply(names(dens_list_AME), function(gr) {
+  d <- dens_list_AME[[gr]]
+  s <- summaries_AME[summaries_AME$group == gr, ]
+  data.frame(x = d$x,
+             y = d$y,
+             group = gr,
+             mean = s$mean,
+             lwr = s$lwr,
+             upr = s$upr)
+}))
+
+modes_AME <- dens_df_AME %>%
+  group_by(group) %>%
+  slice_max(y, n = 1, with_ties = FALSE) %>%
+  select(group, mode_x = x, mode_y = y)
+
+estimates_InterandSlopes <- ggplot(dens_df_AME, aes(x = x, y = y, color = group)) +
+  
+  # ribbon between lwr and upr
+  geom_ribbon(
+    aes(ymin = 0,
+        ymax = ifelse(x >= lwr & x <= upr, y, NA),
+        fill = group),
+    alpha = 0.5, color = NA
+  ) +
+  
+  # full density outline
+  geom_line(size = 0.5) +
+  
+  # short vertical line at mode (up to the peak)
+  geom_segment(
+    aes(x = mode_x, xend = mode_x,
+        y = 0, yend = mode_y,
+        color = group),
+    data = modes_AME,
+    linetype = "solid",
+    size = 1
+  ) +
+  
+  # reference at 0
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  
+  labs(x = "Posterior distrib. of slopes", 
+       y = "Density") +
+  
+  scale_color_manual(values = c("violetred", "orange", "blue")) +
+  scale_fill_manual(values = c("violetred", "orange", "blue")) +
+  
+  scale_x_continuous(breaks = seq(floor(min(dens_df_AME$x)),
+                                  ceiling(max(dens_df_AME$x)),
+                                  by = 1)) +
+  
+  custom_theme +
+  theme(legend.position = "none") +
+  ylim(0, 3)
+
+estimates_InterandSlopes
+
+
+````
 
 
 
@@ -1689,7 +1818,7 @@ fe_estimates_bateman_st <- ggplot(dens_df, aes(x = x, y = y, color = group)) +
                                   by = 0.5)) +
   custom_theme +
   theme(legend.position="none")  +
-  ylim(0, 14)
+  ylim(0, 5)
 
 fe_estimates_bateman_st
 ```
@@ -2056,7 +2185,7 @@ ma_estimates_st <- ggplot(dens_df, aes(x = x, y = y, color = group)) +
                                   by = 0.5)) +
 custom_theme+
   theme(legend.position="none")  +
-  ylim(0, 14)
+  ylim(0, 4)
 
 ma_estimates_st
 
@@ -2085,22 +2214,22 @@ print(Standard_gradients)
 ```{r}
 # Panel A
 panelA <- arrangeGrob(females_plot1,nullGrob(), males_plot1, nrow = 1, widths = c(2, 0.05, 1))
-panelA <- arrangeGrob(textGrob("A", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+panelA <- arrangeGrob(textGrob("A", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 42, fontface = "bold")),
                       panelA, ncol = 1, heights = c(0.1, 1))
 
 # Panel B
 panelB <- arrangeGrob(females_plot_s, nullGrob(), males_plot_s, nrow = 1, widths = c(2, 0.05, 1))
-panelB <- arrangeGrob(textGrob("B", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+panelB <- arrangeGrob(textGrob("B", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 42, fontface = "bold")),
                       panelB, ncol = 1, heights = c(0.1, 1))
 
 #Panel C
 panelC<- estimates_InterandSlopes
-panelC <- arrangeGrob(textGrob("C", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+panelC <- arrangeGrob(textGrob("C", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 42, fontface = "bold")),
                       panelC, ncol = 1, heights = c(0.1, 1))
 
 #Panel D
 panelD<-arrangeGrob(fe_estimates_bateman_st, nullGrob(), ma_estimates_st, nrow = 1, widths = c(2, 0.05, 1))
-panelD <- arrangeGrob(textGrob("D", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 20, fontface = "bold")),
+panelD <- arrangeGrob(textGrob("D", x = 0, y = 1, just = c("left","top"), gp = gpar(fontsize = 42, fontface = "bold")),
                       panelD, ncol = 1, heights = c(0.1, 1))
 
 leftpanel<- grid.arrange(
@@ -2129,8 +2258,8 @@ multi_panel <- grid.arrange(leftpanel, nullGrob(), rightpanel, ncol = 3, widths 
 ggsave(
   "figures/black coucals/Fig1_gradients_BC.png",
   plot = multi_panel,
-  width = 26,    # ↓ narrower overall
-  height = 16,   # you can adjust this too for balance
+  width = 38,    # ↓ narrower overall
+  height = 18,   # you can adjust this too for balance
   dpi = 300,
    limitsize = FALSE,
   bg = "white"
