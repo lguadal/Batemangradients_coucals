@@ -1874,10 +1874,10 @@ head(newdat)
 
 ````
 
-## Figure 1a: Create the scatterplot for females
+# Figure 1a: Create the scatterplot for females
 ```{r, warning=FALSE}
 # Create the scatter plot
-plot <- ggplot(fe, aes(x = jitter(totalmates, 0.15), y = jitter(totaloff, 0.5))) +
+plot <- ggplot(fe, aes(x = jitter(totalmates, 0.6), y = jitter(totaloff, 0.01))) +
       geom_point(shape = 17,alpha = 0.2, size=10,color = "violetred") +
       labs(x = "Mating success", y = "Reproductive success") +
       xlim(0, 5) +
@@ -1903,10 +1903,10 @@ print(females_plot1)
 
 ```
 
-## Figure 1a: Create the scatterplot for males
+# Figure 1a: Create the scatterplot for males
 ```{r}
 #Males
-plot <- ggplot(ma, aes(x = jitter(totalmates, 0.15), y = jitter(totaloff, 0.5), color = category)) +
+plot <- ggplot(ma, aes(x = jitter(totalmates, 0.6), y = jitter(totaloff, 0.01), color = category)) +
    geom_point(shape = 16, alpha = 0.2, size = 10)+
    labs(x = "Mating success", y = "Reproductive success") +
    ylim(0, 16)+
@@ -2087,7 +2087,7 @@ estimates_InterandSlopes
 
 ````
 
-## Figure 1b: Modeling the Bateman gradient in females with standardised values 
+# Figure 1b: Modeling the Bateman gradient in females with standardised values 
 ````{r, warning=FALSE}
 mod <- lmer(mean_st_off_~ 
                 totalmates.z  + 
@@ -2171,10 +2171,11 @@ range_mean_st_off #
 
 ## Figure 1b:Create a scatter plot for females with standardised models 
 ```{r, warning=FALSE}
-plotfs <- ggplot(fe, aes(x = jitter(totalmates.z, 0.15), y = jitter(mean_st_off_, 0.5))) +
+plotfs <- ggplot(fe, aes(x = jitter(totalmates.z, 0.6), y = jitter(mean_st_off_, 0.01))) +
    geom_point(shape = 17,alpha = 0.2, size=10,color = "violetred") +
    labs(x = expression(bar(MS)[std]), y = expression(bar(RS)[std])) +
    ylim(0, 6)+ # Set x-axis breaks 
+  xlim(0.52, 2.62) +
    labs(title = "Females (n = 120)")+
    custom_theme
 plotfs
@@ -2275,7 +2276,7 @@ fe_estimates_bateman_st
 ```
 
 
-## Figure 1b: Modeling the Bateman gradient in males with standardised values 
+# Figure 1b: Modeling the Bateman gradient in males with standardised values 
 ````{r, warning=FALSE}
 mod <- lmer(mean_st_off_ ~ totalmates.z *category +
                (1|year),
@@ -2358,7 +2359,7 @@ range_mean_st_off
 ````{r}
 ## Create a scatter plot for males with standardised models 
 
-plotmf <- ggplot(ma_om, aes(x = jitter(totalmates.z, 0.15), y = jitter(mean_st_off_, 0.5), color = category)) +
+plotmf <- ggplot(ma_om, aes(x = jitter(totalmates.z, 0.6), y = jitter(mean_st_off_, 0.01), color = category)) +
    geom_point(shape = 16, alpha = 0.2, size = 10)+
    labs(x = expression(bar(MS)[std]), y = expression(bar(RS)[std])) +
    labs(title = "Males (n = 179) ")+
