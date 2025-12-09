@@ -78,7 +78,7 @@ for White-browed coucals.
 [**`tables/estimatediff/`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/tables/estimatediff) outputs of estimated differences in slopes and selection opportunities in both coucal species.
 
 ### Datasets description: 
-- For each provided data set, we include details on the variables presented. Each row the associated information of an individual bird.
+- For each provided data set, we include details on the variables presented. Each row shows the associated information of an individual bird.
 - Standardized values of mating and reproductive success are generated directly through the analysis in the Rmarkdown scripts.
 
 [**`data`**](https://github.com/lguadal/Batemangradients_coucals/tree/main/data) CSV files associated to the statistical analyses in the study.
@@ -105,7 +105,7 @@ for White-browed coucals.
 | `totaloff`        | numeric| count                                | Total number of genetic offspring sired by the individual during a breeding season. |
 | `totalmates`      | numeric| count                                | Total number of genetic mates of an individual during a breeding season. |
 | `epy`             | factor | categorical (0, 1)                   | Extra-pair offspring indicator (1 = extra-pair offspring present, 0 = none). |
-| `category`        | factor | categorical ("1females", "2males"", "3malesENO"")| Classification category of the individual (2males == males without extra nest offspring (ENO); 3malesENO == males with ENO). |
+| `category`        | factor | categorical ("1females", "2males", "3malesENO")| Classification category of the individual (2males == males without extra nest offspring (ENO); 3malesENO == males with ENO). |
 | `totalnest_sum`   | numeric| count                                | Total number of nests where an individual sired genetic offspring.|
 
 ---
@@ -122,7 +122,7 @@ for White-browed coucals.
 | `totaloff`            | numeric | count                                | Total number of genetic offspring produced by the individual during a breeding season. |
 | `totalmates`          | numeric | count                                | Total number of genetic mates of an individual during a breeding season. |
 | `epy`                 | factor | category (0/1)                          | Presence of an extra-pair young in the total of genetic offspring sired by an individual. |
-| `category`            | factor  | categorical (1females, 2males, etc.)|  Classification category of the individual (2males == males without extra nest offspring (ENO); 3malesENO == males with ENO). |
+| `category`            | factor  | categorical (1females, 2males, "3malesENO")|  Classification category of the individual (2males == males without extra nest offspring (ENO); 3malesENO == males with ENO). |
 | `species`             | factor  | categorical (1 level: black coucal)  | Species of the bird. |
 | `body_mass`           | numeric | g                                     | Body mass of the individual. Some entries missing. |
 | `right_tarsus`        | numeric | mm                                    | Length of the right tarsus. |
@@ -164,10 +164,3 @@ for White-browed coucals.
 
 ---
 
-#### Usage Policy
-
-You are welcome to view and download the materials in this repository.  
-However:
-- **Do not** use, modify, or share any code or data without **written permission** by Wolfgang Goymann (<a href= "mailto:w.goymann@bi.mpg.de">w.goymann[at]bi.mpg.de</a>) 
-
-© 2025 Guadalupe Lopez-Nava – All rights reserved.
